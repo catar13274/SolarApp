@@ -4,7 +4,7 @@
 This PR adds comprehensive Diet Pi support with nginx-based frontend serving for running SolarApp on Raspberry Pi devices. The implementation provides an ultra-lightweight installation option optimized for Diet Pi OS.
 
 ## Problem Statement
-The application needed to run on Raspberry Pi with Diet Pi OS and build/serve the frontend with nginx (Romanian: "aplicatia trebuie sa ruleze pe un raspbery pi cu Diet pi contruieste acelasi frontend cu nginix").
+The application needed to run on Raspberry Pi with Diet Pi OS and build/serve the frontend with nginx (Romanian: "aplicatia trebuie sa ruleze pe un raspberry pi cu Diet pi construieste acelasi frontend cu nginx").
 
 ## Solution
 Implemented complete Diet Pi support with automated nginx configuration and deployment scripts:

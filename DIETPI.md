@@ -93,6 +93,8 @@ hostname -I
 
 This method provides the best performance on Diet Pi and uses the least resources.
 
+**Note**: For fully automated installation, see the [Quick Setup Script](#quick-setup-script) section below which uses `dietpi-install.sh`. The steps below are for manual installation if you want more control over the process.
+
 ### Step 1: Install Prerequisites
 
 ```bash
@@ -572,8 +574,9 @@ sudo systemctl restart solarapp-backend-rpi solarapp-xml-parser-rpi nginx
 # Fix ownership
 sudo chown -R dietpi:dietpi /home/dietpi/SolarApp
 
-# Fix permissions
+# Fix permissions for scripts
 chmod +x /home/dietpi/SolarApp/install.sh
+chmod +x /home/dietpi/SolarApp/dietpi-install.sh
 ```
 
 ---
