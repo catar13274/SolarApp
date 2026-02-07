@@ -49,7 +49,7 @@ def on_startup():
 @app.get("/")
 def read_root():
     """Root endpoint - redirects to API documentation."""
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url="/docs", status_code=307)
 
 
 @app.get("/api/v1/dashboard/stats")
