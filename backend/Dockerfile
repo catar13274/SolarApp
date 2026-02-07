@@ -5,6 +5,7 @@ WORKDIR /app
 # Install dependencies with optimizations for ARM/Raspberry Pi
 COPY requirements.txt .
 RUN pip install --no-cache-dir --compile -r requirements.txt \
+    # Clean up bytecode files created during pip install (PYTHONDONTWRITEBYTECODE prevents future creation)
     && find /usr/local -type d -name '__pycache__' -exec rm -rf {} + || true \
     && find /usr/local -type f -name '*.pyc' -delete
 

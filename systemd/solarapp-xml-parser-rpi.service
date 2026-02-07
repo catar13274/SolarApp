@@ -4,6 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
+# IMPORTANT: Change 'pi' to your actual username
 User=pi
 WorkingDirectory=/home/pi/SolarApp/backend/services/xml_parser
 Environment="PATH=/home/pi/SolarApp/backend/services/xml_parser/.venv/bin"

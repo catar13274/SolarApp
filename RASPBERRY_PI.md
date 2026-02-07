@@ -76,8 +76,14 @@ chmod +x install.sh
 sudo ./install.sh
 
 # Install Raspberry Pi optimized systemd services
+# Install Raspberry Pi optimized systemd services
 sudo cp systemd/solarapp-backend-rpi.service /etc/systemd/system/
 sudo cp systemd/solarapp-xml-parser-rpi.service /etc/systemd/system/
+
+# IMPORTANT: If your username is not 'pi', edit the service files first:
+# sudo nano /etc/systemd/system/solarapp-backend-rpi.service
+# sudo nano /etc/systemd/system/solarapp-xml-parser-rpi.service
+# Change "User=pi" to your actual username
 
 # Reload systemd and enable services
 sudo systemctl daemon-reload

@@ -32,7 +32,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
         cursor.execute("PRAGMA journal_mode=WAL")
         # Faster writes, minimal data loss risk
         cursor.execute("PRAGMA synchronous=NORMAL")
-        # 32MB cache (8000 pages * 4KB)
+        # 32MB cache (-32000 = 32000KB = ~31.25MB)
         cursor.execute("PRAGMA cache_size=-32000")
         # Keep temp tables in memory
         cursor.execute("PRAGMA temp_store=MEMORY")

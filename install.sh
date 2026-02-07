@@ -378,6 +378,7 @@ if [ "$IS_RASPBERRY_PI" = true ]; then
     echo "  📘 See RASPBERRY_PI.md for complete optimization guide"
     echo
     echo "  🚀 Use optimized systemd services:"
+    echo "     # First, customize the User field in service files if not using 'pi' user"
     echo "     sudo cp systemd/solarapp-backend-rpi.service /etc/systemd/system/"
     echo "     sudo cp systemd/solarapp-xml-parser-rpi.service /etc/systemd/system/"
     echo "     sudo systemctl daemon-reload"

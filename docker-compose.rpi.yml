@@ -59,12 +59,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # Note: Vite embeds API URL at build time. For runtime configuration,
+      # use nginx proxy or modify the build to use window.env pattern
     ports:
       - "3000:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_URL=http://localhost:8000
     # Resource limits for nginx
     deploy:
       resources:

@@ -3,15 +3,12 @@ FROM node:18-alpine as builder
 WORKDIR /app
 
 COPY package*.json ./
-# Use npm ci with production flag for smaller install
-RUN npm ci --only=production --ignore-scripts
+# Install all dependencies (production + dev) for build
+RUN npm ci
 
-# Install dev dependencies separately for build
+# Copy source and build
 COPY . .
-RUN npm install --only=development --ignore-scripts && \
-    npm run build && \
-    # Clean up after build to reduce layer size
-    rm -rf node_modules
+RUN npm run build
 
 FROM nginx:alpine
 
