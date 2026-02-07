@@ -56,6 +56,8 @@ Desktop.ini
 uploads/
 *.xml
 solarapp.db
+*.db-shm
+*.db-wal
 
 # Testing
 .pytest_cache/
