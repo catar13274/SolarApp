@@ -340,7 +340,36 @@ npm run build
 scp -r dist/ dietpi@YOUR_PI_IP:/home/dietpi/SolarApp/frontend/
 ```
 
-### Step 7: Access the Application
+### Step 7: Validate Installation
+
+After installation completes, verify everything is configured correctly:
+
+```bash
+cd /home/dietpi/SolarApp
+
+# Run the validation script
+chmod +x validate-dietpi.sh
+./validate-dietpi.sh
+```
+
+The validation script will check:
+- ✓ Python and nginx installation
+- ✓ Virtual environments
+- ✓ nginx configuration validity
+- ✓ Systemd services
+- ✓ Port availability
+- ✓ Frontend build
+- ✓ File permissions
+
+If all checks pass, you'll see:
+```
+✓ All checks passed!
+Access your application:
+  Frontend:  http://YOUR_PI_IP/
+  API Docs:  http://YOUR_PI_IP/docs
+```
+
+### Step 8: Access the Application
 
 ```bash
 # Find your Pi's IP address
