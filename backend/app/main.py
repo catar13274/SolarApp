@@ -104,8 +104,7 @@ def health_check():
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """Serve frontend application for all non-API routes."""
-    frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
-    
+    # Use the module-level frontend_dist variable
     # If frontend is not built, return a helpful message
     if not frontend_dist.exists():
         return {
@@ -115,9 +114,15 @@ async def serve_frontend(full_path: str):
         }
     
     # Check if specific file exists (for static assets like vite.svg)
-    file_path = frontend_dist / full_path
-    if file_path.exists() and file_path.is_file():
-        return FileResponse(file_path)
+    # Prevent path traversal attacks by resolving and validating the path
+    try:
+        file_path = (frontend_dist / full_path).resolve()
+        # Ensure the resolved path is within frontend_dist
+        if file_path.is_relative_to(frontend_dist) and file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+    except (ValueError, RuntimeError):
+        # Invalid path, continue to serve index.html
+        pass
     
     # For all other routes, serve index.html (SPA routing)
     index_path = frontend_dist / "index.html"
