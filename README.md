@@ -160,8 +160,8 @@ Services will be available at:
 ### Accessing the Application
 
 1. Open your web browser and navigate to `http://localhost:5173` (development) or `http://localhost:3000` (production)
-2. You'll see the Dashboard with system statistics
-3. Use the sidebar to navigate between different sections:
+2. The application will open on the Dashboard page showing real-time system statistics
+3. Use the sidebar navigation to access different sections:
    - **Dashboard**: Overview of system statistics
    - **Materials**: Manage inventory items
    - **Stock**: Track inventory levels and movements
@@ -298,8 +298,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For questions, issues, or suggestions:
 - Open an issue on GitHub
-- Check existing documentation in the `/docs` folder (if available)
 - Review the API documentation at `http://localhost:8000/docs`
+- Check [INSTALL_TEST.md](INSTALL_TEST.md) for installation troubleshooting
+- See [SOLUTION_SUMMARY.md](SOLUTION_SUMMARY.md) for recent changes
 
 ## 🔄 Project Status
 
