@@ -408,7 +408,7 @@ journalctl -u solarapp-backend -n 100 -o export > logs.export
 | View errors only | `journalctl -u solarapp-backend -p err` |
 | View logs from last hour | `journalctl -u solarapp-backend --since "1 hour ago"` |
 | Save logs to file | `journalctl -u solarapp-backend > logs.txt` |
-| Search in logs | `journalctl -u solarapp-backend \| grep "error"` |
+| Search in logs | `journalctl -u solarapp-backend | grep "error"` |
 | View service status | `systemctl status solarapp-backend` |
 | Docker live logs | `docker-compose logs -f` |
 | Docker last 100 lines | `docker-compose logs --tail=100` |
