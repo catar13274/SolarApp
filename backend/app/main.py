@@ -1,8 +1,10 @@
 """FastAPI main application."""
 
 import os
+from pathlib import Path
 from fastapi import FastAPI, Depends
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlmodel import Session, select
@@ -40,16 +42,20 @@ app.include_router(purchases.router)
 app.include_router(invoices.router)
 
 
+# Get the path to the frontend dist directory
+# First check if frontend is built in the parent directory structure
+frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+
+# Mount static files if frontend is built
+if frontend_dist.exists() and frontend_dist.is_dir():
+    # Mount static assets (js, css, images, etc.)
+    app.mount("/assets", StaticFiles(directory=str(frontend_dist / "assets")), name="assets")
+
+
 @app.on_event("startup")
 def on_startup():
     """Initialize database on startup."""
     create_db_and_tables()
-
-
-@app.get("/")
-def read_root():
-    """Root endpoint - redirects to API documentation."""
-    return RedirectResponse(url="/docs", status_code=307)
 
 
 @app.get("/api/v1/dashboard/stats")
@@ -91,3 +97,32 @@ def get_dashboard_stats(session: Session = Depends(get_session)):
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+# Serve frontend for all other routes (catch-all for SPA)
+# This must be defined last, after all API routes
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """Serve frontend application for all non-API routes."""
+    frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
+    
+    # If frontend is not built, return a helpful message
+    if not frontend_dist.exists():
+        return {
+            "message": "Frontend not built",
+            "info": "Run 'cd frontend && npm install && npm run build' to build the frontend",
+            "api_docs": "/docs"
+        }
+    
+    # Check if specific file exists (for static assets like vite.svg)
+    file_path = frontend_dist / full_path
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(file_path)
+    
+    # For all other routes, serve index.html (SPA routing)
+    index_path = frontend_dist / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    
+    # Fallback if index.html doesn't exist
+    return {"message": "Frontend index.html not found", "api_docs": "/docs"}
