@@ -1,12 +1,22 @@
 """Sample data script for SolarApp."""
 
+import os
 from datetime import date, datetime
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, create_engine, SQLModel
 from app.models import Material, Stock, Project, ProjectMaterial, Purchase, PurchaseItem
-from app.database import DATABASE_URL
+
+# Get database URL from environment or use default
+DATABASE_URL = os.getenv("SOLARAPP_DB_URL", "sqlite:///./solarapp.db")
 
 # Create engine
-engine = create_engine(DATABASE_URL)
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+)
+
+# Ensure tables exist
+SQLModel.metadata.create_all(engine)
 
 
 def create_sample_data():
