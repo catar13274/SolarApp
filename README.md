@@ -249,6 +249,12 @@ journalctl -u solarapp-backend -f
 journalctl -u solarapp-xml-parser -f
 ```
 
+**📋 For comprehensive logging commands and troubleshooting**, see [LOGGING.md](LOGGING.md) which includes:
+- Viewing and filtering logs
+- Exporting logs to files
+- Common troubleshooting scenarios
+- Commands for sending logs to support
+
 ## 🏗️ Architecture
 
 ```
@@ -299,7 +305,20 @@ Contributions are welcome! Here's how you can help:
 
 ## 🐛 Troubleshooting
 
+**📋 For detailed logging and troubleshooting commands**, see [LOGGING.md](LOGGING.md)
+
 ### Common Issues
+
+**Service not starting or errors:**
+```bash
+# Check service status
+systemctl status solarapp-backend
+
+# View recent error logs
+journalctl -u solarapp-backend -n 50 -p err
+
+# See LOGGING.md for more diagnostic commands
+```
 
 **Port already in use:**
 ```bash
@@ -339,6 +358,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For questions, issues, or suggestions:
 - Open an issue on GitHub
 - Review the API documentation at `http://localhost:8000/docs`
+- Check [LOGGING.md](LOGGING.md) for log collection commands when reporting issues
 - Check [INSTALL_TEST.md](INSTALL_TEST.md) for installation troubleshooting
 - See [SOLUTION_SUMMARY.md](SOLUTION_SUMMARY.md) for recent changes
 
