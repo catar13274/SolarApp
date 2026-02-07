@@ -50,13 +50,33 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
 
   const onSubmit = (data) => {
     // Convert numeric fields
-    if (data.capacity_kw) data.capacity_kw = parseFloat(data.capacity_kw)
-    if (data.estimated_cost) data.estimated_cost = parseFloat(data.estimated_cost)
-    if (data.actual_cost) data.actual_cost = parseFloat(data.actual_cost)
+    if (data.capacity_kw) {
+      data.capacity_kw = parseFloat(data.capacity_kw)
+      if (isNaN(data.capacity_kw)) data.capacity_kw = null
+    } else {
+      data.capacity_kw = null
+    }
     
-    // Convert empty strings to null for optional date fields
-    if (!data.start_date) data.start_date = null
-    if (!data.end_date) data.end_date = null
+    if (data.estimated_cost) {
+      data.estimated_cost = parseFloat(data.estimated_cost)
+      if (isNaN(data.estimated_cost)) data.estimated_cost = null
+    } else {
+      data.estimated_cost = null
+    }
+    
+    if (data.actual_cost) {
+      data.actual_cost = parseFloat(data.actual_cost)
+      if (isNaN(data.actual_cost)) data.actual_cost = null
+    } else {
+      data.actual_cost = null
+    }
+    
+    // Convert empty strings to null for optional fields
+    if (!data.start_date || data.start_date === '') data.start_date = null
+    if (!data.end_date || data.end_date === '') data.end_date = null
+    if (!data.location || data.location === '') data.location = null
+    if (!data.client_contact || data.client_contact === '') data.client_contact = null
+    if (!data.notes || data.notes === '') data.notes = null
     
     if (project) {
       updateMutation.mutate(data)

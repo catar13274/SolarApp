@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Download } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { projects } from '../services/api'
 import Card from '../components/Common/Card'
@@ -50,6 +50,37 @@ const ProjectsPage = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingProject(null)
+  }
+
+  const handleExportPDF = async (project) => {
+    try {
+      toast.loading('Generating PDF...')
+      const response = await projects.exportPDF(project.id)
+      
+      // Create a blob from the response
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `Oferta_Comerciala_${project.name.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+      
+      // Trigger download
+      document.body.appendChild(link)
+      link.click()
+      
+      // Cleanup
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      toast.dismiss()
+      toast.success('PDF downloaded successfully')
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to generate PDF')
+      console.error('PDF generation error:', error)
+    }
   }
 
   const statusOptions = [
@@ -165,14 +196,23 @@ const ProjectsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => handleExportPDF(project)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Export PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleEdit(project)}
                           className="text-primary-600 hover:text-primary-900"
+                          title="Edit"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(project.id)}
                           className="text-red-600 hover:text-red-900"
+                          title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

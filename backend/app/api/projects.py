@@ -2,11 +2,13 @@
 
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlmodel import Session, select
 from datetime import datetime
 
 from ..database import get_session
 from ..models import Project, ProjectMaterial, Material, StockMovement
+from ..pdf_service import generate_commercial_offer_pdf
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -260,3 +262,51 @@ def use_materials(
     session.commit()
     
     return {"message": "Materials marked as used successfully"}
+
+
+@router.get("/{project_id}/export-pdf")
+def export_project_pdf(project_id: int, session: Session = Depends(get_session)):
+    """Export project as a commercial offer PDF."""
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Get project materials
+    project_materials = session.exec(
+        select(ProjectMaterial).where(ProjectMaterial.project_id == project_id)
+    ).all()
+    
+    materials_list = []
+    for pm in project_materials:
+        material = session.get(Material, pm.material_id)
+        if material:
+            materials_list.append({
+                "material_id": material.id,
+                "material_name": material.name,
+                "material_sku": material.sku,
+                "quantity_planned": pm.quantity_planned,
+                "quantity_used": pm.quantity_used,
+                "unit_price": pm.unit_price,
+                "total_cost": pm.quantity_planned * pm.unit_price
+            })
+    
+    # Prepare project data for PDF
+    project_data = project.model_dump()
+    
+    # Generate PDF
+    try:
+        pdf_bytes = generate_commercial_offer_pdf(project_data, materials_list)
+        
+        # Create filename
+        filename = f"Oferta_Comerciala_{project.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        # Return PDF as response
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
