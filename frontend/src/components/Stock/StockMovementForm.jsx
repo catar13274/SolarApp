@@ -37,7 +37,14 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
   })
 
   const onSubmit = (data) => {
-    data.material_id = parseInt(data.material_id)
+    // Validate and convert material_id
+    const materialId = parseInt(data.material_id)
+    if (isNaN(materialId) || materialId <= 0) {
+      toast.error('Please select a valid material')
+      return
+    }
+    
+    data.material_id = materialId
     data.quantity = parseFloat(data.quantity)
     
     createMutation.mutate(data)
@@ -62,7 +69,10 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
             label: `${m.name} (${m.sku})`
           }))
         ]}
-        {...register('material_id', { required: 'Material is required' })}
+        {...register('material_id', { 
+          required: 'Material is required',
+          validate: (value) => value !== '' || 'Please select a material'
+        })}
         error={errors.material_id?.message}
       />
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Plus } from 'lucide-react'
+import { AlertTriangle, Plus, ArrowRight } from 'lucide-react'
 import { stock } from '../services/api'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
@@ -8,9 +8,12 @@ import Badge from '../components/Common/Badge'
 import LoadingSpinner from '../components/Common/LoadingSpinner'
 import Modal from '../components/Common/Modal'
 import StockMovementForm from '../components/Stock/StockMovementForm'
+import AllocateMaterialForm from '../components/Stock/AllocateMaterialForm'
 
 const StockPage = () => {
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false)
+  const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false)
+  const [selectedStock, setSelectedStock] = useState(null)
   const [showLowStockOnly, setShowLowStockOnly] = useState(false)
 
   const { data: stockData, isLoading: stockLoading } = useQuery({
@@ -109,6 +112,9 @@ const StockPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -147,6 +153,20 @@ const StockPage = () => {
                           OK
                         </Badge>
                       )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setSelectedStock(item)
+                          setIsAllocateModalOpen(true)
+                        }}
+                        disabled={item.quantity <= 0}
+                      >
+                        <ArrowRight className="h-4 w-4 mr-1" />
+                        Allocate
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -237,6 +257,31 @@ const StockPage = () => {
           onSuccess={() => setIsMovementModalOpen(false)}
           onCancel={() => setIsMovementModalOpen(false)}
         />
+      </Modal>
+
+      {/* Allocate Material Modal */}
+      <Modal
+        isOpen={isAllocateModalOpen}
+        onClose={() => {
+          setIsAllocateModalOpen(false)
+          setSelectedStock(null)
+        }}
+        title="Allocate Material to Project"
+        size="lg"
+      >
+        {selectedStock && (
+          <AllocateMaterialForm
+            stockItem={selectedStock}
+            onSuccess={() => {
+              setIsAllocateModalOpen(false)
+              setSelectedStock(null)
+            }}
+            onCancel={() => {
+              setIsAllocateModalOpen(false)
+              setSelectedStock(null)
+            }}
+          />
+        )}
       </Modal>
     </div>
   )
