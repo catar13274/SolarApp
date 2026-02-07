@@ -4,6 +4,14 @@ import axios from 'axios'
 // In production, VITE_API_URL should be set to the actual backend URL
 const API_URL = import.meta.env.VITE_API_URL || ''
 
+// Log API configuration in development
+if (import.meta.env.DEV) {
+  console.log('API Configuration:', {
+    baseURL: API_URL || '(using Vite proxy)',
+    mode: import.meta.env.MODE,
+  })
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
