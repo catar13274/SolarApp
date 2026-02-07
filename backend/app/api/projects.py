@@ -171,8 +171,8 @@ def update_project_material(
     """Update project material quantities and prices."""
     project_material = session.exec(
         select(ProjectMaterial).where(
-            ProjectMaterial.project_id == project_id,
-            ProjectMaterial.material_id == material_id
+            (ProjectMaterial.project_id == project_id) &
+            (ProjectMaterial.material_id == material_id)
         )
     ).first()
     
@@ -202,8 +202,8 @@ def remove_material_from_project(
     """Remove material from project."""
     project_material = session.exec(
         select(ProjectMaterial).where(
-            ProjectMaterial.project_id == project_id,
-            ProjectMaterial.material_id == material_id
+            (ProjectMaterial.project_id == project_id) &
+            (ProjectMaterial.material_id == material_id)
         )
     ).first()
     
@@ -237,8 +237,8 @@ def use_materials(
         # Update project material
         project_material = session.exec(
             select(ProjectMaterial).where(
-                ProjectMaterial.project_id == project_id,
-                ProjectMaterial.material_id == material_id
+                (ProjectMaterial.project_id == project_id) &
+                (ProjectMaterial.material_id == material_id)
             )
         ).first()
         
