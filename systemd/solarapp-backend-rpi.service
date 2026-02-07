@@ -19,7 +19,7 @@ Environment="PYTHONDONTWRITEBYTECODE=1"
 ExecStart=/home/pi/SolarApp/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
 
 # Resource limits for Raspberry Pi
-MemoryLimit=256M
+MemoryMax=256M
 CPUQuota=50%
 Nice=5
 

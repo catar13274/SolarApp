@@ -1,0 +1,35 @@
+[Unit]
+Description=SolarApp Backend API Service
+After=network.target
+
+[Service]
+Type=simple
+# IMPORTANT: Change 'your-username' to your actual username
+User=your-username
+# Configured for installation at /opt/SolarApp
+WorkingDirectory=/opt/SolarApp/backend
+Environment="PATH=/opt/SolarApp/backend/.venv/bin"
+Environment="SOLARAPP_DB_URL=sqlite:////opt/SolarApp/backend/data/solarapp.db"
+Environment="XML_PARSER_URL=http://localhost:5000"
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONDONTWRITEBYTECODE=1"
+
+# Optimized for Raspberry Pi: single worker, reduced concurrency
+ExecStart=/opt/SolarApp/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
+
+# Resource limits for Raspberry Pi
+MemoryMax=256M
+CPUQuota=50%
+Nice=5
+
+# Auto-restart on failure
+Restart=on-failure
+RestartSec=10s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=solarapp-backend
+
+[Install]
+WantedBy=multi-user.target

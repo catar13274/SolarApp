@@ -16,7 +16,7 @@ Environment="PYTHONDONTWRITEBYTECODE=1"
 ExecStart=/home/pi/SolarApp/backend/services/xml_parser/.venv/bin/python parser_app.py
 
 # Resource limits for Raspberry Pi
-MemoryLimit=128M
+MemoryMax=128M
 CPUQuota=25%
 Nice=10
 
