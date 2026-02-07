@@ -105,11 +105,19 @@ pip3 install -r requirements.txt
 # Copy environment configuration
 cp .env.example .env
 
+# Initialize the database
+python3 init_db.py
+
+# (Optional) Load sample data for testing
+python3 sample_data.py
+
 # Run the backend
 uvicorn app.main:app --reload
 ```
 
 The backend API will be available at `http://localhost:8000`.
+
+**Note:** The database is automatically created when you run `init_db.py`. See `backend/README.md` for detailed database setup instructions.
 
 #### 2. XML Parser Service Setup
 

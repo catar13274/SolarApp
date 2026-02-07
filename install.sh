@@ -197,7 +197,9 @@ else
 fi
 
 # Initialize database
-print_info "Database will be initialized on first run"
+print_info "Initializing database..."
+python3 init_db.py
+print_info "Database initialized successfully!"
 
 cd ..
 echo
