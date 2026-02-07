@@ -63,6 +63,10 @@ check_python_version() {
             MISSING_PREREQS+=("Python 3.9+")
             return 1
         fi
+    else
+        print_error "python3 is NOT installed"
+        MISSING_PREREQS+=("Python 3.9+")
+        return 1
     fi
 }
 
@@ -79,6 +83,9 @@ check_node_version() {
             MISSING_PREREQS+=("Node.js 18+")
             return 1
         fi
+    else
+        # Node not found - this case is already handled by check_command
+        return 1
     fi
 }
 
@@ -89,8 +96,12 @@ echo
 print_info "Checking prerequisites..."
 check_python_version || true
 check_command "pip3" "pip3" "true" || true
-check_command "node" "Node.js" "true" || true
-check_node_version || true
+# Only check node version if node command exists
+if command -v node &> /dev/null; then
+    check_node_version || true
+else
+    check_command "node" "Node.js" "true" || true
+fi
 check_command "npm" "npm" "true" || true
 check_command "git" "git" "false" || true
 echo
@@ -204,14 +215,27 @@ INSTALL_SERVICES="yes"
 if [ "$INSTALL_SERVICES" = "yes" ]; then
     print_info "Setting up systemd services..."
     
-    # Check if running with sudo/root for systemd service installation
-    if [ "$EUID" -ne 0 ] && [ -d "/etc/systemd/system" ]; then
+    # Check if systemd is available
+    if [ ! -d "/etc/systemd/system" ]; then
+        print_warning "Systemd not available on this system, skipping service creation"
+    elif [ "$EUID" -ne 0 ]; then
+        # Not running as root
         print_warning "Systemd service installation requires sudo privileges"
         print_info "You can manually create systemd services later or run this script with sudo"
         print_info "Skipping systemd service creation..."
-    elif [ -d "/etc/systemd/system" ]; then
+    else
         # We're running as root and systemd is available
         INSTALL_DIR=$(pwd)
+        
+        # Determine the user to run services as
+        # If running via sudo, use SUDO_USER; otherwise use a default non-root user
+        if [ -n "$SUDO_USER" ]; then
+            SERVICE_USER="$SUDO_USER"
+        else
+            # Running directly as root, try to find a reasonable user
+            SERVICE_USER=$(logname 2>/dev/null || echo "nobody")
+            print_warning "Running as root without sudo, using user: $SERVICE_USER"
+        fi
         
         # Create backend service
         print_info "Creating solarapp-backend.service..."
@@ -222,7 +246,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=$SUDO_USER
+User=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR/backend
 Environment="PATH=$INSTALL_DIR/backend/.venv/bin"
 ExecStart=$INSTALL_DIR/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -241,7 +265,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=$SUDO_USER
+User=$SERVICE_USER
 WorkingDirectory=$INSTALL_DIR/backend/services/xml_parser
 Environment="PATH=$INSTALL_DIR/backend/services/xml_parser/.venv/bin"
 ExecStart=$INSTALL_DIR/backend/services/xml_parser/.venv/bin/python parser_app.py
@@ -259,8 +283,6 @@ EOF
         systemctl start solarapp-xml-parser.service
         
         print_info "Systemd services created and started"
-    else
-        print_warning "Systemd not available on this system, skipping service creation"
     fi
 else
     print_info "Skipping systemd service installation (INSTALL_SERVICES != yes)"
