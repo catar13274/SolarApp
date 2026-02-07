@@ -48,6 +48,7 @@ export const projects = {
   updateMaterial: (projectId, materialId, data) => api.put(`/api/v1/projects/${projectId}/materials/${materialId}`, data),
   removeMaterial: (projectId, materialId) => api.delete(`/api/v1/projects/${projectId}/materials/${materialId}`),
   useMaterials: (projectId, data) => api.post(`/api/v1/projects/${projectId}/use-materials`, data),
+  exportPDF: (projectId) => api.get(`/api/v1/projects/${projectId}/export-pdf`, { responseType: 'blob' }),
 }
 
 // Purchases API
