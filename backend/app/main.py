@@ -2,6 +2,7 @@
 
 import os
 from fastapi import FastAPI, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlmodel import Session, select
@@ -47,12 +48,8 @@ def on_startup():
 
 @app.get("/")
 def read_root():
-    """Root endpoint."""
-    return {
-        "message": "Welcome to SolarApp API",
-        "version": "1.0.0",
-        "docs": "/docs"
-    }
+    """Root endpoint - redirects to API documentation."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/api/v1/dashboard/stats")
