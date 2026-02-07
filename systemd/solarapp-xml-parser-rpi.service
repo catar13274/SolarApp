@@ -4,13 +4,15 @@ After=network.target
 
 [Service]
 Type=simple
-# IMPORTANT: Change 'pi' to your actual username
+# IMPORTANT: Change 'pi' to your actual username AND update the paths below to match your installation directory
 User=pi
+# Update these paths to match your installation directory (e.g., /opt/SolarApp, /home/youruser/SolarApp, etc.)
 WorkingDirectory=/home/pi/SolarApp/backend/services/xml_parser
 Environment="PATH=/home/pi/SolarApp/backend/services/xml_parser/.venv/bin"
 Environment="PYTHONUNBUFFERED=1"
 Environment="PYTHONDONTWRITEBYTECODE=1"
 
+# Make sure this path matches your installation directory
 ExecStart=/home/pi/SolarApp/backend/services/xml_parser/.venv/bin/python parser_app.py
 
 # Resource limits for Raspberry Pi

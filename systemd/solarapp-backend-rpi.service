@@ -4,8 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-# IMPORTANT: Change 'pi' to your actual username
+# IMPORTANT: Change 'pi' to your actual username AND update the paths below to match your installation directory
 User=pi
+# Update these paths to match your installation directory (e.g., /opt/SolarApp, /home/youruser/SolarApp, etc.)
 WorkingDirectory=/home/pi/SolarApp/backend
 Environment="PATH=/home/pi/SolarApp/backend/.venv/bin"
 Environment="SOLARAPP_DB_URL=sqlite:////home/pi/SolarApp/backend/data/solarapp.db"
@@ -14,6 +15,7 @@ Environment="PYTHONUNBUFFERED=1"
 Environment="PYTHONDONTWRITEBYTECODE=1"
 
 # Optimized for Raspberry Pi: single worker, reduced concurrency
+# Make sure this path matches your installation directory
 ExecStart=/home/pi/SolarApp/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
 
 # Resource limits for Raspberry Pi

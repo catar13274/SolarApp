@@ -76,14 +76,19 @@ chmod +x install.sh
 sudo ./install.sh
 
 # Install Raspberry Pi optimized systemd services
-# Install Raspberry Pi optimized systemd services
 sudo cp systemd/solarapp-backend-rpi.service /etc/systemd/system/
 sudo cp systemd/solarapp-xml-parser-rpi.service /etc/systemd/system/
 
-# IMPORTANT: If your username is not 'pi', edit the service files first:
-# sudo nano /etc/systemd/system/solarapp-backend-rpi.service
-# sudo nano /etc/systemd/system/solarapp-xml-parser-rpi.service
-# Change "User=pi" to your actual username
+# IMPORTANT: Edit the service files to match your installation:
+# 1. Change "User=pi" to your actual username
+# 2. Update all paths to match where you installed SolarApp
+#    (e.g., if you installed to /opt/SolarApp instead of /home/pi/SolarApp)
+sudo nano /etc/systemd/system/solarapp-backend-rpi.service
+sudo nano /etc/systemd/system/solarapp-xml-parser-rpi.service
+
+# Example: If you installed to /opt/SolarApp, replace all instances of:
+#   /home/pi/SolarApp -> /opt/SolarApp
+# in both service files
 
 # Reload systemd and enable services
 sudo systemctl daemon-reload
@@ -129,11 +134,14 @@ Access the API at `http://raspberry-pi-ip:8000/docs`
 
 ### Environment Variables
 
-Create or edit `/home/pi/SolarApp/backend/.env`:
+Create or edit `<your-install-dir>/backend/.env` (replace `<your-install-dir>` with your actual installation path):
 
 ```env
-# Database
+# Database (update path to match your installation directory)
 SOLARAPP_DB_URL=sqlite:////home/pi/SolarApp/backend/data/solarapp.db
+
+# If you installed to /opt/SolarApp, use:
+# SOLARAPP_DB_URL=sqlite:////opt/SolarApp/backend/data/solarapp.db
 
 # XML Parser
 XML_PARSER_URL=http://localhost:5000
@@ -360,16 +368,18 @@ sudo systemctl disable dphys-swapfile
 
 ### Automated Backup Script
 
-Create `/home/pi/backup-solarapp.sh`:
+Create `/home/pi/backup-solarapp.sh` (adjust paths to match your installation):
 
 ```bash
 #!/bin/bash
+# Update INSTALL_DIR to match where you installed SolarApp
+INSTALL_DIR="/home/pi/SolarApp"
 BACKUP_DIR="/home/pi/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 mkdir -p $BACKUP_DIR
 
 # Backup database
-cp /home/pi/SolarApp/backend/data/solarapp.db "$BACKUP_DIR/solarapp_$DATE.db"
+cp "$INSTALL_DIR/backend/data/solarapp.db" "$BACKUP_DIR/solarapp_$DATE.db"
 
 # Keep only last 7 days
 find $BACKUP_DIR -name "solarapp_*.db" -mtime +7 -delete
