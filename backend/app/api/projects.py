@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from datetime import datetime
 
 from ..database import get_session
-from ..models import Project, ProjectMaterial, Material, StockMovement
+from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed
 from ..pdf_service import generate_commercial_offer_pdf
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -167,7 +167,7 @@ def add_material_to_project(
 def update_project_material(
     project_id: int,
     material_id: int,
-    updates: dict,
+    updates: ProjectMaterialUpdate,
     session: Session = Depends(get_session)
 ):
     """Update project material quantities and prices."""
@@ -181,12 +181,12 @@ def update_project_material(
     if not project_material:
         raise HTTPException(status_code=404, detail="Project material not found")
     
-    if "quantity_planned" in updates:
-        project_material.quantity_planned = updates["quantity_planned"]
-    if "quantity_used" in updates:
-        project_material.quantity_used = updates["quantity_used"]
-    if "unit_price" in updates:
-        project_material.unit_price = updates["unit_price"]
+    if updates.quantity_planned is not None:
+        project_material.quantity_planned = updates.quantity_planned
+    if updates.quantity_used is not None:
+        project_material.quantity_used = updates.quantity_used
+    if updates.unit_price is not None:
+        project_material.unit_price = updates.unit_price
     
     session.add(project_material)
     session.commit()
@@ -221,7 +221,7 @@ def remove_material_from_project(
 @router.post("/{project_id}/use-materials")
 def use_materials(
     project_id: int,
-    materials_used: List[dict],
+    materials_used: List[MaterialUsed],
     session: Session = Depends(get_session)
 ):
     """Mark materials as used in project and update stock."""
@@ -230,29 +230,26 @@ def use_materials(
         raise HTTPException(status_code=404, detail="Project not found")
     
     for item in materials_used:
-        material_id = item.get("material_id")
-        quantity = item.get("quantity", 0)
-        
-        if quantity <= 0:
+        if item.quantity <= 0:
             continue
         
         # Update project material
         project_material = session.exec(
             select(ProjectMaterial).where(
                 (ProjectMaterial.project_id == project_id) &
-                (ProjectMaterial.material_id == material_id)
+                (ProjectMaterial.material_id == item.material_id)
             )
         ).first()
         
         if project_material:
-            project_material.quantity_used += quantity
+            project_material.quantity_used += item.quantity
             session.add(project_material)
         
         # Create stock movement
         movement = StockMovement(
-            material_id=material_id,
+            material_id=item.material_id,
             movement_type="out",
-            quantity=quantity,
+            quantity=item.quantity,
             reference_type="project",
             reference_id=project_id,
             notes=f"Used in project: {project.name}"

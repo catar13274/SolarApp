@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from datetime import datetime
 
 from ..database import get_session
-from ..models import Purchase, PurchaseItem, StockMovement, Material
+from ..models import Purchase, PurchaseItem, StockMovement, Material, PurchaseCreate
 
 router = APIRouter(prefix="/api/v1/purchases", tags=["purchases"])
 
@@ -52,18 +52,18 @@ def get_purchase(purchase_id: int, session: Session = Depends(get_session)):
 
 @router.post("/", response_model=Purchase)
 def create_purchase(
-    purchase_data: dict,
+    purchase_data: PurchaseCreate,
     session: Session = Depends(get_session)
 ):
     """Create purchase and automatically update stock."""
     # Create purchase
     purchase = Purchase(
-        supplier=purchase_data.get("supplier"),
-        purchase_date=purchase_data.get("purchase_date"),
-        invoice_number=purchase_data.get("invoice_number"),
-        total_amount=purchase_data.get("total_amount", 0.0),
-        currency=purchase_data.get("currency", "RON"),
-        notes=purchase_data.get("notes"),
+        supplier=purchase_data.supplier,
+        purchase_date=purchase_data.purchase_date,
+        invoice_number=purchase_data.invoice_number,
+        total_amount=purchase_data.total_amount,
+        currency=purchase_data.currency,
+        notes=purchase_data.notes,
         created_at=datetime.utcnow()
     )
     
@@ -72,16 +72,15 @@ def create_purchase(
     session.refresh(purchase)
     
     # Create purchase items and stock movements
-    items = purchase_data.get("items", [])
-    for item_data in items:
+    for item_data in purchase_data.items:
         item = PurchaseItem(
             purchase_id=purchase.id,
-            material_id=item_data.get("material_id"),
-            description=item_data.get("description"),
-            sku=item_data.get("sku"),
-            quantity=item_data.get("quantity"),
-            unit_price=item_data.get("unit_price"),
-            total_price=item_data.get("total_price")
+            material_id=item_data.material_id,
+            description=item_data.description,
+            sku=item_data.sku,
+            quantity=item_data.quantity,
+            unit_price=item_data.unit_price,
+            total_price=item_data.total_price
         )
         session.add(item)
         

@@ -1,8 +1,9 @@
 """Database models for SolarApp."""
 
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 from sqlmodel import Field, SQLModel
+from pydantic import BaseModel
 
 
 class Material(SQLModel, table=True):
@@ -112,3 +113,39 @@ class Invoice(SQLModel, table=True):
     xml_file_path: Optional[str] = None
     purchase_id: Optional[int] = Field(foreign_key="purchase.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Request/Response Models (Pydantic models for API validation)
+
+class PurchaseItemCreate(BaseModel):
+    """Model for creating purchase items."""
+    material_id: Optional[int] = None
+    description: str
+    sku: Optional[str] = None
+    quantity: float
+    unit_price: float
+    total_price: float
+
+
+class PurchaseCreate(BaseModel):
+    """Model for creating purchases."""
+    supplier: str
+    purchase_date: date
+    invoice_number: Optional[str] = None
+    total_amount: float = 0.0
+    currency: str = "RON"
+    notes: Optional[str] = None
+    items: List[PurchaseItemCreate] = []
+
+
+class ProjectMaterialUpdate(BaseModel):
+    """Model for updating project materials."""
+    quantity_planned: Optional[float] = None
+    quantity_used: Optional[float] = None
+    unit_price: Optional[float] = None
+
+
+class MaterialUsed(BaseModel):
+    """Model for materials used in a project."""
+    material_id: int
+    quantity: float
