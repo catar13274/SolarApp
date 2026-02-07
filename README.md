@@ -39,11 +39,18 @@
 
 Before installing SolarApp, ensure you have the following installed:
 
+### Required:
 - **Python 3.9 or higher** - [Download Python](https://www.python.org/downloads/)
 - **pip3** - Usually comes with Python
+
+### Optional (for frontend):
 - **Node.js 18 or higher** - [Download Node.js](https://nodejs.org/)
 - **npm** - Usually comes with Node.js
-- **git** (optional) - [Download Git](https://git-scm.com/downloads/)
+
+### Optional (for development):
+- **git** - [Download Git](https://git-scm.com/downloads/)
+
+**Note:** The installation script will install the backend and XML parser service even if Node.js/npm are not available. The frontend can be installed later by installing Node.js 18+ and npm, then running `cd frontend && npm install && npm run build`.
 
 ## 🚀 Installation
 
@@ -69,9 +76,11 @@ The installation script will:
 2. ✅ Set up Python virtual environment for the backend
 3. ✅ Install backend dependencies
 4. ✅ Set up the XML parser service
-5. ✅ Install frontend dependencies and build the application
+5. ✅ Install frontend dependencies and build the application (if Node.js/npm are available)
 6. ✅ Create and configure systemd services (when run with sudo)
 7. ✅ Optionally load sample data for testing
+
+**Note:** If Node.js and npm are not installed, the script will skip frontend installation and continue with backend setup. The frontend can be installed later once Node.js and npm are available.
 
 For detailed installation testing and troubleshooting, see [INSTALL_TEST.md](INSTALL_TEST.md).
 
