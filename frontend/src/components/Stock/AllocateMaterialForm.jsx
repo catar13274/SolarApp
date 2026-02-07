@@ -20,7 +20,6 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
     defaultValues: {
       project_id: '',
       quantity: 0,
-      unit_price: materialData?.unit_price || 0,
     }
   })
 
