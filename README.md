@@ -1,15 +1,24 @@
-# One-Command Install
+# SolarApp
 
-To install the application, simply run the following command:
+Description of the SolarApp project.
 
-```bash
-curl -sSL https://example.com/install.sh | bash
-```
+## Installation Instructions
 
-This command will download the installation script and execute it. 
+- Check and install prerequisites (Python 3.9+, Node.js 18+)
+- Clone the repository
+- Set up the backend with virtual environment
+- Set up the frontend
+- Automatically create and start systemd services
+- Optionally load sample data (will prompt)
 
-**Create and start systemd services automatically.**
+## Usage Instructions
 
-After installation, services will be automatically started, allowing you to use the application without any additional setup.
+Instructions on how to use the SolarApp.
 
-For more information on managing the services, refer to the documentation.
+## Contributing
+
+Guidelines on contributing to the project.
+
+## License
+
+Details about the license.
