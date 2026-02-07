@@ -120,10 +120,16 @@ if check_command node; then
 fi
 
 # Check npm
-check_command npm
+if check_command npm; then
+    NPM_VERSION=$(npm --version)
+    print_info "npm version: $NPM_VERSION"
+fi
 
 # Check git
-check_command git
+if check_command git; then
+    GIT_VERSION=$(git --version | cut -d' ' -f3)
+    print_info "git version: $GIT_VERSION"
+fi
 
 # Install missing dependencies
 print_header "Installing Missing Dependencies"
