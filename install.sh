@@ -198,10 +198,11 @@ fi
 
 # Initialize database
 print_info "Initializing database..."
-source .venv/bin/activate
 python3 init_db.py --non-interactive
-deactivate
 print_info "Database initialized successfully!"
+
+# Deactivate virtual environment
+deactivate
 
 cd ..
 echo

@@ -49,12 +49,20 @@ The backend uses SQLite as the default database. The database is automatically c
 
 ## Database Location
 
-The database file is stored in the `backend` directory by default. The exact location is determined by the `SOLARAPP_DB_URL` environment variable:
+The database file location is determined by the `SOLARAPP_DB_URL` environment variable in the `.env` file:
 
-- **Default path**: `backend/solarapp.db` (using `sqlite:///./solarapp.db` in the URL)
-- **Diet Pi/Production**: Can be configured to use absolute paths like `sqlite:///opt/solarapp/backend/data/solarapp.db`
+- **Default configuration**: `sqlite:///./solarapp.db`
+  - Creates `solarapp.db` in the current working directory
+  - When running from `backend/` directory: creates `backend/solarapp.db`
+  - **Important**: Always run the backend from the `backend/` directory to ensure consistent file location
+  
+- **Absolute path configuration**: `sqlite:////absolute/path/to/solarapp.db`
+  - Creates database at the specified absolute path
+  - Recommended for production deployments (e.g., `/opt/solarapp/backend/data/solarapp.db`)
 
 You can change the database location by modifying the `SOLARAPP_DB_URL` environment variable in the `.env` file.
+
+**Best Practice**: Always run backend commands from the `backend/` directory to ensure the database is created in the expected location.
 
 ### SQLite Files
 

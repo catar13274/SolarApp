@@ -28,7 +28,9 @@ def main():
     print("=" * 60)
     print(f"\nDatabase URL: {DATABASE_URL}")
     
-    # Extract database file path from URL
+    # Extract database file path from URL (SQLite only)
+    # Note: For PostgreSQL or other databases, this script will still initialize tables
+    # but won't show file location information
     if "sqlite:///" in DATABASE_URL:
         db_path = DATABASE_URL.replace("sqlite:///", "")
         # Handle relative paths
@@ -56,6 +58,9 @@ def main():
                 print("Non-interactive mode: proceeding with initialization...")
         else:
             print(f"\n✓ Database file does not exist. Creating new database...")
+    else:
+        # Non-SQLite database (e.g., PostgreSQL, MySQL)
+        print("\n✓ Initializing database tables...")
     
     try:
         # Create database and tables
