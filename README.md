@@ -221,6 +221,8 @@ The Diet Pi installer will:
 
 **📗 For complete Diet Pi guide, see [DIETPI.md](DIETPI.md)**
 
+**🚀 For quick reference, see [DIETPI_QUICKSTART.md](DIETPI_QUICKSTART.md)**
+
 **Resource usage on Diet Pi:**
 - nginx: ~10-20MB RAM
 - Backend: ~80-150MB RAM  
