@@ -483,75 +483,32 @@ crontab -e
 
 ## Quick Setup Script
 
-For automated native installation on Diet Pi, save this as `dietpi-install.sh`:
+For fully automated installation on Diet Pi, use the provided `dietpi-install.sh` script:
 
 ```bash
-#!/bin/bash
-set -e
-
-echo "Installing SolarApp on Diet Pi with nginx..."
-
-# Install prerequisites
-sudo dietpi-software install 130 85 17  # Python3, nginx, Git
-
 # Clone repository
 cd /home/dietpi
 git clone https://github.com/catar13274/SolarApp.git
 cd SolarApp
 
-# Run installation
-chmod +x install.sh
-sudo ./install.sh
-
-# Configure nginx
-sudo tee /etc/nginx/sites-available/solarapp > /dev/null <<'EOF'
-server {
-    listen 80;
-    server_name _;
-    root /home/dietpi/SolarApp/frontend/dist;
-    index index.html;
-    
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-    
-    location /api {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    
-    location ~ ^/(docs|redoc|openapi.json) {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-    }
-}
-EOF
-
-# Enable site
-sudo ln -sf /etc/nginx/sites-available/solarapp /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
-
-# Set up services with correct user
-sudo cp systemd/solarapp-backend-rpi.service /etc/systemd/system/
-sudo cp systemd/solarapp-xml-parser-rpi.service /etc/systemd/system/
-sudo sed -i 's/User=pi/User=dietpi/g' /etc/systemd/system/solarapp-backend-rpi.service
-sudo sed -i 's/User=pi/User=dietpi/g' /etc/systemd/system/solarapp-xml-parser-rpi.service
-
-# Start services
-sudo systemctl daemon-reload
-sudo systemctl enable --now solarapp-backend-rpi solarapp-xml-parser-rpi nginx
-
-echo "Installation complete!"
-echo "Access SolarApp at http://$(hostname -I | awk '{print $1}')/"
-```
-
-Run it:
-
-```bash
+# Run the automated Diet Pi installer
 chmod +x dietpi-install.sh
-./dietpi-install.sh
+sudo ./dietpi-install.sh
 ```
+
+The `dietpi-install.sh` script will:
+- Install prerequisites (Python, nginx, Git)
+- Set up backend and XML parser with virtual environments
+- Build the frontend (if Node.js available)
+- Configure nginx with reverse proxy
+- Create and start systemd services
+- Validate the installation
+
+Access your application at `http://YOUR_PI_IP/` after installation completes.
+
+**Note**: This is the recommended installation method for Diet Pi as it handles all configuration automatically.
+
+---
 
 ---
 

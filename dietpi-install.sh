@@ -119,7 +119,7 @@ fi
 # Install backend dependencies
 print_info "Installing backend dependencies..."
 cd backend
-source .venv/bin/activate
+source .venv/bin/activate || { print_error "Failed to activate backend virtual environment"; exit 1; }
 pip install --upgrade pip --quiet
 pip install -r requirements.txt --quiet
 deactivate
@@ -147,7 +147,7 @@ fi
 # Install XML parser dependencies
 print_info "Installing XML parser dependencies..."
 cd backend/services/xml_parser
-source .venv/bin/activate
+source .venv/bin/activate || { print_error "Failed to activate XML parser virtual environment"; exit 1; }
 pip install --upgrade pip --quiet
 pip install -r requirements.txt --quiet
 deactivate
@@ -432,15 +432,19 @@ if [ "$FRONTEND_BUILT" = false ]; then
     echo
 fi
 
-# Offer to load sample data
-read -p "Would you like to load sample data for testing? (y/N): " load_sample
-if [[ $load_sample =~ ^[Yy]$ ]]; then
-    print_info "Loading sample data..."
-    cd "$INSTALL_DIR/backend"
-    source .venv/bin/activate
-    python sample_data.py
-    deactivate
-    print_info "Sample data loaded successfully"
+# Offer to load sample data (only if running interactively)
+if [ -t 0 ]; then
+    read -t 30 -p "Would you like to load sample data for testing? (y/N): " load_sample || load_sample="n"
+    if [[ $load_sample =~ ^[Yy]$ ]]; then
+        print_info "Loading sample data..."
+        cd "$INSTALL_DIR/backend"
+        source .venv/bin/activate
+        python sample_data.py
+        deactivate
+        print_info "Sample data loaded successfully"
+    fi
+else
+    print_info "Running non-interactively, skipping sample data prompt"
 fi
 
 echo

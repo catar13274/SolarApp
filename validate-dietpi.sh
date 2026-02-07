@@ -201,7 +201,7 @@ fi
 # Test 14: Check if frontend/dist is accessible by nginx
 print_info "Checking frontend permissions..."
 if [ -d "frontend/dist" ]; then
-    DIST_PERMS=$(stat -c "%a" frontend/dist 2>/dev/null || stat -f "%A" frontend/dist 2>/dev/null)
+    DIST_PERMS=$(stat -c "%a" frontend/dist 2>/dev/null)
     if [ -n "$DIST_PERMS" ]; then
         print_pass "Frontend dist folder is readable (permissions: $DIST_PERMS)"
     else
