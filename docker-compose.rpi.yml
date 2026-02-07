@@ -1,5 +1,9 @@
 version: '3.8'
 
+# Docker Compose configuration optimized for Raspberry Pi and Diet Pi
+# This configuration uses nginx to serve the frontend with optimized settings
+# For more info, see RASPBERRY_PI.md and DIETPI.md
+
 services:
   backend:
     build: ./backend
@@ -59,13 +63,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      # Note: Vite embeds API URL at build time. For runtime configuration,
-      # use nginx proxy or modify the build to use window.env pattern
+      # Builds React app and serves with nginx
+      # nginx is configured with:
+      # - Single worker process for low memory usage
+      # - Gzip compression for faster transfer
+      # - Static file serving from /usr/share/nginx/html
+      # - API proxy to backend service
     ports:
       - "3000:80"
     depends_on:
       - backend
-    # Resource limits for nginx
+    # Resource limits for nginx (very lightweight)
     deploy:
       resources:
         limits:

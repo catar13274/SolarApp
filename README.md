@@ -196,6 +196,43 @@ sudo systemctl enable --now solarapp-backend-rpi solarapp-xml-parser-rpi
 - Raspberry Pi 3 B+ (1GB) - Full features  
 - Raspberry Pi Zero 2 W (512MB) - Backend only
 
+### Diet Pi Installation (Recommended for Raspberry Pi)
+
+**🚀 Ultra-lightweight installation with nginx frontend!**
+
+Diet Pi is a minimal Debian-based OS that provides the best performance on Raspberry Pi. SolarApp includes a specialized installer for Diet Pi with native nginx configuration.
+
+```bash
+# Clone the repository
+git clone https://github.com/catar13274/SolarApp.git
+cd SolarApp
+
+# Run the Diet Pi installer (includes nginx setup)
+chmod +x dietpi-install.sh
+sudo ./dietpi-install.sh
+```
+
+The Diet Pi installer will:
+- ✅ Install all prerequisites (Python, nginx, etc.)
+- ✅ Set up backend and XML parser services
+- ✅ Build and configure frontend with nginx
+- ✅ Create optimized systemd services
+- ✅ Configure nginx as reverse proxy
+
+**📗 For complete Diet Pi guide, see [DIETPI.md](DIETPI.md)**
+
+**Resource usage on Diet Pi:**
+- nginx: ~10-20MB RAM
+- Backend: ~80-150MB RAM  
+- XML Parser: ~40-80MB RAM
+- **Total: ~130-250MB RAM** (50-100MB less than standard Raspberry Pi OS!)
+
+**Benefits of Diet Pi:**
+- 50MB+ less RAM usage compared to standard Raspberry Pi OS
+- Faster boot times (~20-30 seconds)
+- Built-in software manager for easy updates
+- Optimized for headless operation
+
 ## 📖 Usage
 
 ### Accessing the Application
