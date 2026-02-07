@@ -99,13 +99,15 @@ check_command "pip3" "pip3" "true" || true
 
 # Check if Node.js and npm are available (for optional frontend)
 FRONTEND_AVAILABLE=true
-# Only check node version if node command exists
+# Check node version if node command exists
 if command -v node &> /dev/null; then
     check_node_version || true
+    # Even if version check passed, verify npm is also available for FRONTEND_AVAILABLE
 else
-    check_command "node" "Node.js" "false" || true
+    check_command "node" "Node.js" "false"
     FRONTEND_AVAILABLE=false
 fi
+# Check npm
 if ! check_command "npm" "npm" "false"; then
     FRONTEND_AVAILABLE=false
 fi

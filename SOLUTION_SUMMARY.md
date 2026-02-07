@@ -7,14 +7,14 @@ Users attempting to install SolarApp on systems without Node.js and npm (such as
 Modified the installation script to make frontend installation optional:
 
 ### 1. **Optional Frontend Installation**
-- Node.js and npm are now treated as **optional** prerequisites (not required)
+- Node.js and npm are now treated as optional prerequisites (not required)
 - Backend and XML parser service can be installed without frontend
 - Users can install frontend later by installing Node.js/npm and running `cd frontend && npm install && npm run build`
 - Installation continues even when Node.js/npm are not available
 
 ### 2. **Graceful Prerequisite Checking**
 - Checks all prerequisites before exiting (Python 3.9+, pip3 required; Node.js 18+, npm, git optional)
-- Collects all missing **required** prerequisites and displays them together
+- Collects all missing required prerequisites and displays them together
 - Uses `|| true` pattern to prevent `set -e` from causing premature exit
 - Distinguishes between required and optional dependencies
 
