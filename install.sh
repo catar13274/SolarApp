@@ -96,13 +96,20 @@ echo
 print_info "Checking prerequisites..."
 check_python_version || true
 check_command "pip3" "pip3" "true" || true
+
+# Check if Node.js and npm are available (for optional frontend)
+FRONTEND_AVAILABLE=true
 # Only check node version if node command exists
 if command -v node &> /dev/null; then
     check_node_version || true
 else
-    check_command "node" "Node.js" "true" || true
+    check_command "node" "Node.js" "false" || true
+    FRONTEND_AVAILABLE=false
 fi
-check_command "npm" "npm" "true" || true
+if ! check_command "npm" "npm" "false"; then
+    FRONTEND_AVAILABLE=false
+fi
+
 check_command "git" "git" "false" || true
 echo
 
@@ -115,11 +122,18 @@ if [ ${#MISSING_PREREQS[@]} -gt 0 ]; then
     echo
     print_info "Please install the missing prerequisites and try again:"
     echo "  - Python 3.9+: https://www.python.org/downloads/"
-    echo "  - Node.js 18+: https://nodejs.org/en/download/"
     echo "  - pip3: Usually comes with Python, or install via package manager"
-    echo "  - npm: Usually comes with Node.js"
     echo "  - git (optional): https://git-scm.com/downloads"
     exit 1
+fi
+
+# Display frontend availability status
+if [ "$FRONTEND_AVAILABLE" = "false" ]; then
+    echo
+    print_warning "Node.js and/or npm are not installed - frontend will be skipped"
+    print_info "To install the frontend later, install Node.js 18+ and npm, then run:"
+    echo "  cd frontend && npm install && npm run build"
+    echo
 fi
 
 # Display warnings for optional prerequisites
@@ -169,20 +183,25 @@ print_info "Database will be initialized on first run"
 cd ..
 echo
 
-# Setup frontend
-print_info "Setting up frontend..."
-cd frontend
-
-# Install Node dependencies
-print_info "Installing Node.js dependencies (this may take a few minutes)..."
-npm install
-
-# Build frontend
-print_info "Building frontend..."
-npm run build
-
-cd ..
-echo
+# Setup frontend (if Node.js and npm are available)
+if [ "$FRONTEND_AVAILABLE" = "true" ]; then
+    print_info "Setting up frontend..."
+    cd frontend
+    
+    # Install Node dependencies
+    print_info "Installing Node.js dependencies (this may take a few minutes)..."
+    npm install
+    
+    # Build frontend
+    print_info "Building frontend..."
+    npm run build
+    
+    cd ..
+    echo
+else
+    print_info "Skipping frontend setup (Node.js/npm not available)"
+    echo
+fi
 
 # Setup XML Parser Service
 print_info "Setting up XML Parser service..."
@@ -319,7 +338,12 @@ if [ "$INSTALL_SERVICES" = "yes" ] && [ -d "/etc/systemd/system" ] && [ "$EUID" 
 else
     echo "  - Start backend: cd backend && source .venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     echo "  - Start XML parser: cd backend/services/xml_parser && source .venv/bin/activate && python parser_app.py"
-    echo "  - Start frontend dev server: cd frontend && npm run dev"
+    if [ "$FRONTEND_AVAILABLE" = "true" ]; then
+        echo "  - Start frontend dev server: cd frontend && npm run dev"
+    else
+        echo "  - Frontend not installed (Node.js/npm not available)"
+        echo "  - To install frontend: install Node.js 18+ and npm, then run 'cd frontend && npm install && npm run build'"
+    fi
 fi
 echo "  - Review and update configuration in backend/.env"
 echo "  - API documentation: http://localhost:8000/docs"
