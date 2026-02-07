@@ -1,0 +1,30 @@
+[Unit]
+Description=SolarApp XML Parser Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/SolarApp/backend/services/xml_parser
+Environment="PATH=/home/pi/SolarApp/backend/services/xml_parser/.venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+Environment="PYTHONDONTWRITEBYTECODE=1"
+
+ExecStart=/home/pi/SolarApp/backend/services/xml_parser/.venv/bin/python parser_app.py
+
+# Resource limits for Raspberry Pi
+MemoryLimit=128M
+CPUQuota=25%
+Nice=10
+
+# Auto-restart on failure
+Restart=on-failure
+RestartSec=10s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=solarapp-xml-parser
+
+[Install]
+WantedBy=multi-user.target

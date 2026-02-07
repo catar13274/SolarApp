@@ -8,6 +8,7 @@ set -e  # Exit on error, but we'll handle critical checks manually
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Function to print colored messages
@@ -23,9 +24,25 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+print_note() {
+    echo -e "${BLUE}[NOTE]${NC} $1"
+}
+
 # Track missing prerequisites
 MISSING_PREREQS=()
 WARNINGS=()
+
+# Detect Raspberry Pi
+IS_RASPBERRY_PI=false
+if [ -f /proc/device-tree/model ]; then
+    MODEL=$(cat /proc/device-tree/model)
+    if [[ $MODEL == *"Raspberry Pi"* ]]; then
+        IS_RASPBERRY_PI=true
+        print_note "Raspberry Pi detected: $MODEL"
+        print_note "Optimizations for Raspberry Pi will be applied!"
+        echo
+    fi
+fi
 
 # Function to check command availability
 check_command() {
@@ -349,4 +366,37 @@ else
 fi
 echo "  - Review and update configuration in backend/.env"
 echo "  - API documentation: http://localhost:8000/docs"
+
+# Raspberry Pi specific recommendations
+if [ "$IS_RASPBERRY_PI" = true ]; then
+    echo
+    print_note "=========================================="
+    print_note "Raspberry Pi Optimization Tips"
+    print_note "=========================================="
+    echo
+    print_info "For optimal performance on Raspberry Pi:"
+    echo "  📘 See RASPBERRY_PI.md for complete optimization guide"
+    echo
+    echo "  🚀 Use optimized systemd services:"
+    echo "     sudo cp systemd/solarapp-backend-rpi.service /etc/systemd/system/"
+    echo "     sudo cp systemd/solarapp-xml-parser-rpi.service /etc/systemd/system/"
+    echo "     sudo systemctl daemon-reload"
+    echo "     sudo systemctl enable --now solarapp-backend-rpi solarapp-xml-parser-rpi"
+    echo
+    echo "  🐳 Or use optimized Docker Compose:"
+    echo "     docker-compose -f docker-compose.rpi.yml up -d"
+    echo
+    echo "  💡 Resource usage estimates:"
+    echo "     - Native installation: ~150-250MB RAM"
+    echo "     - Docker installation: ~300-500MB RAM"
+    echo "     - Backend only: ~60-120MB RAM"
+    echo
+    print_info "Optimizations applied:"
+    echo "  ✓ SQLite WAL mode for SD card longevity"
+    echo "  ✓ Single worker configuration"
+    echo "  ✓ Reduced concurrency limits"
+    echo "  ✓ GZip compression enabled"
+    echo "  ✓ Memory-optimized database cache"
+fi
+
 echo

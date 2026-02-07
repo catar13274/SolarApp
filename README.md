@@ -2,6 +2,8 @@
 
 **SolarApp** is a comprehensive Solar Panel Management System designed to streamline the management of solar panel installations, inventory, and projects. Built with a modern tech stack, it provides an intuitive interface for tracking materials, managing stock levels, coordinating projects, and processing invoices.
 
+**🎯 Optimized for Raspberry Pi!** See [RASPBERRY_PI.md](RASPBERRY_PI.md) for detailed Raspberry Pi installation and optimization guide.
+
 ## 🌟 Features
 
 - **Dashboard**: Real-time overview of system statistics, including total materials, low stock alerts, and active projects
@@ -163,6 +165,36 @@ Services will be available at:
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:8000`
 - XML Parser: `http://localhost:5000`
+
+### Raspberry Pi Installation
+
+**🎯 Optimized for resource-constrained devices!**
+
+SolarApp has been specially optimized for Raspberry Pi with reduced memory footprint, optimized database configuration, and ARM-specific optimizations.
+
+```bash
+# Use the Raspberry Pi optimized Docker Compose
+docker-compose -f docker-compose.rpi.yml up -d
+
+# Or install natively for best performance
+sudo ./install.sh
+sudo cp systemd/solarapp-backend-rpi.service /etc/systemd/system/
+sudo cp systemd/solarapp-xml-parser-rpi.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now solarapp-backend-rpi solarapp-xml-parser-rpi
+```
+
+**📘 For complete Raspberry Pi guide, see [RASPBERRY_PI.md](RASPBERRY_PI.md)**
+
+**Resource usage on Raspberry Pi:**
+- Docker mode: ~300-500MB total RAM
+- Native mode: ~150-250MB total RAM
+- Backend-only: ~60-120MB RAM
+
+**Supports:**
+- Raspberry Pi 4 (2GB+) - Full features
+- Raspberry Pi 3 B+ (1GB) - Full features  
+- Raspberry Pi Zero 2 W (512MB) - Backend only
 
 ## 📖 Usage
 

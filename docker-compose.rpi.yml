@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - SOLARAPP_DB_URL=sqlite:///./data/solarapp.db
+      - XML_PARSER_URL=http://xml-parser:5000
+      - XML_PARSER_TOKEN=${XML_PARSER_TOKEN:-dev-token-12345}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    # Optimized command for Raspberry Pi with single worker
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
+    depends_on:
+      - xml-parser
+    # Resource limits for Raspberry Pi
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  xml-parser:
+    build: ./backend/services/xml_parser
+    ports:
+      - "5000:5000"
+    environment:
+      - XML_PARSER_TOKEN=${XML_PARSER_TOKEN:-dev-token-12345}
+    # Resource limits for XML parser
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    # Resource limits for nginx
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  data:

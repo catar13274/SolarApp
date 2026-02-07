@@ -3,6 +3,7 @@
 import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, get_session
@@ -15,6 +16,9 @@ app = FastAPI(
     description="Solar Panel Management System API",
     version="1.0.0"
 )
+
+# Add GZip compression middleware for better performance on slow connections
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Configure CORS
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
