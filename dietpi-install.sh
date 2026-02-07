@@ -138,7 +138,7 @@ echo
 print_info "Initializing database..."
 cd backend
 source .venv/bin/activate || { print_error "Failed to activate backend virtual environment"; exit 1; }
-python3 init_db.py
+python3 init_db.py --non-interactive
 deactivate
 cd ..
 

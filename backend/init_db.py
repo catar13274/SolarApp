@@ -7,6 +7,7 @@ Run this script to initialize the database before starting the application.
 
 import os
 import sys
+import argparse
 from pathlib import Path
 
 # Add the backend directory to the path so we can import app modules
@@ -17,6 +18,11 @@ from app.database import create_db_and_tables, DATABASE_URL
 
 def main():
     """Initialize the database."""
+    parser = argparse.ArgumentParser(description='Initialize SolarApp database')
+    parser.add_argument('--non-interactive', action='store_true',
+                        help='Run without prompts (always proceed)')
+    args = parser.parse_args()
+    
     print("=" * 60)
     print("SolarApp Database Initialization")
     print("=" * 60)
@@ -36,10 +42,18 @@ def main():
         # Check if database already exists
         if db_path.exists():
             print(f"\n⚠️  Database file already exists: {db_path}")
-            response = input("Do you want to continue? This will NOT delete existing data. (y/N): ")
-            if response.lower() != 'y':
-                print("Database initialization cancelled.")
-                return
+            if not args.non_interactive:
+                # Check if stdin is a TTY (interactive terminal)
+                if sys.stdin.isatty():
+                    response = input("Do you want to continue? This will NOT delete existing data. (y/N): ")
+                    if response.lower() != 'y':
+                        print("Database initialization cancelled.")
+                        return
+                else:
+                    # Non-interactive mode without flag, proceed anyway
+                    print("Running in non-interactive mode, proceeding...")
+            else:
+                print("Non-interactive mode: proceeding with initialization...")
         else:
             print(f"\n✓ Database file does not exist. Creating new database...")
     
