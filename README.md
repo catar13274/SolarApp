@@ -161,8 +161,7 @@ Services will be available at:
 
 1. Open your web browser and navigate to `http://localhost:5173` (development) or `http://localhost:3000` (production)
 2. The application will open on the Dashboard page showing real-time system statistics
-3. Use the sidebar navigation to access different sections:
-   - **Dashboard**: Overview of system statistics
+3. Use the sidebar navigation to access other sections:
    - **Materials**: Manage inventory items
    - **Stock**: Track inventory levels and movements
    - **Projects**: Manage solar installation projects
