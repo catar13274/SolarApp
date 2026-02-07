@@ -88,7 +88,13 @@ This error occurs when the paths in the service file don't match your actual ins
 **Solution:**
 1. Check where SolarApp is actually installed:
    ```bash
-   which uvicorn  # Should show something like /path/to/SolarApp/backend/.venv/bin/uvicorn
+   # Method 1: If you remember where you cloned/installed it
+   ls -la ~/SolarApp  # Check home directory
+   ls -la /opt/SolarApp  # Check /opt
+   
+   # Method 2: Search for it
+   find ~ -name "uvicorn" -path "*/SolarApp/backend/.venv/bin/*" 2>/dev/null
+   find /opt -name "uvicorn" -path "*/SolarApp/backend/.venv/bin/*" 2>/dev/null
    ```
 
 2. Edit the service file and update all paths to match your installation:
