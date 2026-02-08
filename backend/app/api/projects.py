@@ -107,6 +107,12 @@ def update_project(
     project.end_date = project_update.end_date
     project.estimated_cost = project_update.estimated_cost
     project.actual_cost = project_update.actual_cost
+    project.labor_cost_estimated = project_update.labor_cost_estimated
+    project.labor_cost_actual = project_update.labor_cost_actual
+    project.transport_cost_estimated = project_update.transport_cost_estimated
+    project.transport_cost_actual = project_update.transport_cost_actual
+    project.other_costs_estimated = project_update.other_costs_estimated
+    project.other_costs_actual = project_update.other_costs_actual
     project.notes = project_update.notes
     project.updated_at = datetime.utcnow()
     
