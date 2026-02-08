@@ -26,7 +26,7 @@ def list_materials(
         query = query.where(
             (Material.name.contains(search)) | 
             (Material.sku.contains(search)) |
-            (Material.description.contains(search))
+            ((Material.description.is_not(None)) & (Material.description.contains(search)))
         )
     
     if category:
