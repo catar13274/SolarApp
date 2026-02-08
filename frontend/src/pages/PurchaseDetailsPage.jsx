@@ -1,20 +1,62 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Package, FileText } from 'lucide-react'
-import { purchases } from '../services/api'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ArrowLeft, Package, FileText, Plus } from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import { purchases, materials } from '../services/api'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Badge from '../components/Common/Badge'
 import LoadingSpinner from '../components/Common/LoadingSpinner'
+import Modal from '../components/Common/Modal'
+import Select from '../components/Common/Select'
+import { useState } from 'react'
 
 const PurchaseDetailsPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [isAddToStockModalOpen, setIsAddToStockModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [selectedMaterialId, setSelectedMaterialId] = useState('')
 
   const { data: purchase, isLoading } = useQuery({
     queryKey: ['purchase', id],
     queryFn: () => purchases.getById(id).then(res => res.data),
   })
+
+  const { data: materialsData } = useQuery({
+    queryKey: ['materials'],
+    queryFn: () => materials.getAll().then(res => res.data),
+  })
+
+  const addToStockMutation = useMutation({
+    mutationFn: ({ itemId, materialId }) => 
+      purchases.addItemToStock(id, itemId, materialId),
+    onSuccess: () => {
+      toast.success('Item added to stock successfully!')
+      queryClient.invalidateQueries(['purchase', id])
+      setIsAddToStockModalOpen(false)
+      setSelectedItem(null)
+      setSelectedMaterialId('')
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to add item to stock')
+    },
+  })
+
+  const handleAddToStock = (item) => {
+    setSelectedItem(item)
+    setIsAddToStockModalOpen(true)
+  }
+
+  const handleConfirmAddToStock = () => {
+    if (selectedItem && selectedMaterialId) {
+      addToStockMutation.mutate({
+        itemId: selectedItem.id,
+        materialId: parseInt(selectedMaterialId)
+      })
+    }
+  }
 
   if (isLoading) {
     return (
@@ -133,6 +175,9 @@ const PurchaseDetailsPage = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Total Price
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -141,8 +186,8 @@ const PurchaseDetailsPage = () => {
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {item.description}
                         {item.material_name && (
-                          <span className="block text-xs text-gray-500 mt-1">
-                            Material: {item.material_name}
+                          <span className="block text-xs text-green-600 mt-1">
+                            ✓ Linked to: {item.material_name}
                           </span>
                         )}
                       </td>
@@ -158,6 +203,20 @@ const PurchaseDetailsPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                         {item.total_price.toFixed(2)} {purchase.currency}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {!item.material_id ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleAddToStock(item)}
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add to Stock
+                          </Button>
+                        ) : (
+                          <Badge variant="success">In Stock</Badge>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -166,6 +225,73 @@ const PurchaseDetailsPage = () => {
           </div>
         </Card>
       )}
+
+      {/* Add to Stock Modal */}
+      <Modal
+        isOpen={isAddToStockModalOpen}
+        onClose={() => {
+          setIsAddToStockModalOpen(false)
+          setSelectedItem(null)
+          setSelectedMaterialId('')
+        }}
+        title="Add Item to Stock"
+        size="md"
+      >
+        {selectedItem && (
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium text-gray-900 mb-2">Item Details</h4>
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Description:</span> {selectedItem.description}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Quantity:</span> {selectedItem.quantity}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Unit Price:</span> {selectedItem.unit_price.toFixed(2)} {purchase.currency}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Material
+              </label>
+              <Select
+                value={selectedMaterialId}
+                onChange={(e) => setSelectedMaterialId(e.target.value)}
+                required
+              >
+                <option value="">-- Select a material --</option>
+                {materialsData?.map((material) => (
+                  <option key={material.id} value={material.id}>
+                    {material.name} ({material.sku})
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsAddToStockModalOpen(false)
+                  setSelectedItem(null)
+                  setSelectedMaterialId('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmAddToStock}
+                disabled={!selectedMaterialId || addToStockMutation.isPending}
+              >
+                {addToStockMutation.isPending ? 'Adding...' : 'Add to Stock'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

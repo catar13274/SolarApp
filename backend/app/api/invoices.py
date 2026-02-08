@@ -9,7 +9,7 @@ from datetime import datetime, date
 import httpx
 
 from ..database import get_session
-from ..models import Invoice, Purchase
+from ..models import Invoice, Purchase, PurchaseItem
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
@@ -176,6 +176,22 @@ async def upload_invoice(
         session.add(purchase)
         session.commit()
         session.refresh(purchase)
+        
+        # Create purchase items from parsed invoice items
+        items_data = parsed_data.get('items', [])
+        for item_data in items_data:
+            purchase_item = PurchaseItem(
+                purchase_id=purchase.id,
+                material_id=None,  # Will be matched manually later
+                description=item_data.get('description', ''),
+                sku=item_data.get('sku', ''),
+                quantity=item_data.get('quantity', 0.0),
+                unit_price=item_data.get('unit_price', 0.0),
+                total_price=item_data.get('total_price', 0.0)
+            )
+            session.add(purchase_item)
+        
+        session.commit()
         
         # Create invoice record
         invoice = Invoice(

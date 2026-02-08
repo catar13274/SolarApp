@@ -4,11 +4,67 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from datetime import datetime
+from pydantic import BaseModel
 
 from ..database import get_session
 from ..models import Purchase, PurchaseItem, StockMovement, Material, PurchaseCreate
 
 router = APIRouter(prefix="/api/v1/purchases", tags=["purchases"])
+
+
+class AddItemToStockRequest(BaseModel):
+    """Request model for adding purchase item to stock."""
+    material_id: int
+    
+
+@router.post("/{purchase_id}/items/{item_id}/add-to-stock")
+def add_purchase_item_to_stock(
+    purchase_id: int,
+    item_id: int,
+    request: AddItemToStockRequest,
+    session: Session = Depends(get_session)
+):
+    """Add a purchase item to material stock."""
+    # Get purchase
+    purchase = session.get(Purchase, purchase_id)
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Get purchase item
+    purchase_item = session.get(PurchaseItem, item_id)
+    if not purchase_item or purchase_item.purchase_id != purchase_id:
+        raise HTTPException(status_code=404, detail="Purchase item not found")
+    
+    # Verify material exists
+    material = session.get(Material, request.material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Material not found")
+    
+    # Update purchase item with material_id
+    purchase_item.material_id = request.material_id
+    session.add(purchase_item)
+    
+    # Create stock movement
+    movement = StockMovement(
+        material_id=request.material_id,
+        movement_type="in",
+        quantity=purchase_item.quantity,
+        reference_type="purchase",
+        reference_id=purchase_id,
+        notes=f"Added from purchase {purchase.invoice_number or purchase_id} - {purchase_item.description}",
+        created_at=datetime.utcnow()
+    )
+    session.add(movement)
+    
+    session.commit()
+    session.refresh(purchase_item)
+    
+    return {
+        "message": "Item added to stock successfully",
+        "purchase_item": purchase_item.model_dump(),
+        "stock_movement_id": movement.id
+    }
+
 
 
 @router.get("/", response_model=List[Purchase])

@@ -10,6 +10,31 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 
+def remove_diacritics(text):
+    """
+    Remove Romanian diacritics from text.
+    Converts: ă→a, â→a, î→i, ș→s, ț→t (both uppercase and lowercase)
+    """
+    if not text:
+        return text
+    
+    if not isinstance(text, str):
+        text = str(text)
+    
+    diacritics_map = {
+        'ă': 'a', 'Ă': 'A',
+        'â': 'a', 'Â': 'A',
+        'î': 'i', 'Î': 'I',
+        'ș': 's', 'Ș': 'S',
+        'ț': 't', 'Ț': 'T'
+    }
+    
+    for diacritic, replacement in diacritics_map.items():
+        text = text.replace(diacritic, replacement)
+    
+    return text
+
+
 def generate_commercial_offer_pdf(project_data, materials_list=None):
     """
     Generate a commercial offer PDF for a project.
@@ -61,17 +86,17 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     normal_style.leading = 14
     
     # Add Title
-    elements.append(Paragraph("OFERTĂ COMERCIALĂ", title_style))
+    elements.append(Paragraph(remove_diacritics("OFERTĂ COMERCIALĂ"), title_style))
     elements.append(Spacer(1, 10*mm))
     
     # Add Offer Details Section
-    elements.append(Paragraph("Detalii Ofertă", heading_style))
+    elements.append(Paragraph(remove_diacritics("Detalii Ofertă"), heading_style))
     
     offer_date = datetime.now().strftime("%d.%m.%Y")
     offer_details = [
-        ['Data ofertei:', offer_date],
-        ['Nr. ofertă:', f"OF-{project_data.get('id', 'N/A')}-{datetime.now().strftime('%Y%m%d')}"],
-        ['Valabilitate:', '30 zile'],
+        [remove_diacritics('Data ofertei:'), offer_date],
+        [remove_diacritics('Nr. ofertă:'), f"OF-{project_data.get('id', 'N/A')}-{datetime.now().strftime('%Y%m%d')}"],
+        [remove_diacritics('Valabilitate:'), remove_diacritics('30 zile')],
     ]
     
     offer_table = Table(offer_details, colWidths=[60*mm, 80*mm])
@@ -88,12 +113,12 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     elements.append(Spacer(1, 10*mm))
     
     # Add Client Information
-    elements.append(Paragraph("Date Client", heading_style))
+    elements.append(Paragraph(remove_diacritics("Date Client"), heading_style))
     
     client_info = [
-        ['Nume client:', project_data.get('client_name', 'N/A')],
-        ['Contact:', project_data.get('client_contact', 'N/A')],
-        ['Locație:', project_data.get('location', 'N/A')],
+        [remove_diacritics('Nume client:'), remove_diacritics(project_data.get('client_name', 'N/A'))],
+        [remove_diacritics('Contact:'), remove_diacritics(project_data.get('client_contact', 'N/A'))],
+        [remove_diacritics('Locație:'), remove_diacritics(project_data.get('location', 'N/A'))],
     ]
     
     client_table = Table(client_info, colWidths=[60*mm, 80*mm])
@@ -110,16 +135,16 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     elements.append(Spacer(1, 10*mm))
     
     # Add Project Information
-    elements.append(Paragraph("Detalii Proiect", heading_style))
+    elements.append(Paragraph(remove_diacritics("Detalii Proiect"), heading_style))
     
     project_info = [
-        ['Nume proiect:', project_data.get('name', 'N/A')],
-        ['Capacitate sistem:', f"{project_data.get('capacity_kw', 0)} kW" if project_data.get('capacity_kw') else 'N/A'],
-        ['Status:', project_data.get('status', 'N/A').replace('_', ' ').title()],
+        [remove_diacritics('Nume proiect:'), remove_diacritics(project_data.get('name', 'N/A'))],
+        [remove_diacritics('Capacitate sistem:'), f"{project_data.get('capacity_kw', 0)} kW" if project_data.get('capacity_kw') else 'N/A'],
+        [remove_diacritics('Status:'), remove_diacritics(project_data.get('status', 'N/A').replace('_', ' ').title())],
     ]
     
     if project_data.get('start_date'):
-        project_info.append(['Data start estimată:', str(project_data.get('start_date'))])
+        project_info.append([remove_diacritics('Data start estimată:'), str(project_data.get('start_date'))])
     
     project_table = Table(project_info, colWidths=[60*mm, 80*mm])
     project_table.setStyle(TableStyle([
@@ -136,11 +161,13 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     
     # Add Materials List (if provided)
     if materials_list and len(materials_list) > 0:
-        elements.append(Paragraph("Materiale și Costuri", heading_style))
+        elements.append(Paragraph(remove_diacritics("Materiale și Costuri"), heading_style))
         
         # Materials table header
         materials_data = [
-            ['Nr.', 'Material', 'SKU', 'Cantitate', 'Preț Unitar (RON)', 'Total (RON)']
+            [remove_diacritics('Nr.'), remove_diacritics('Material'), 
+             remove_diacritics('SKU'), remove_diacritics('Cantitate'), 
+             remove_diacritics('Preț Unitar (RON)'), remove_diacritics('Total (RON)')]
         ]
         
         total_cost = 0
@@ -150,8 +177,8 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
             
             materials_data.append([
                 str(idx),
-                material.get('material_name', 'N/A'),
-                material.get('material_sku', 'N/A'),
+                remove_diacritics(material.get('material_name', 'N/A')),
+                remove_diacritics(material.get('material_sku', 'N/A')),
                 f"{material.get('quantity_planned', 0):.2f}",
                 f"{material.get('unit_price', 0):.2f}",
                 f"{material_total:.2f}"
@@ -198,9 +225,9 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     # Add pricing section (if no materials provided, use estimated cost)
     if not materials_list or len(materials_list) == 0:
         if project_data.get('estimated_cost'):
-            elements.append(Paragraph("Estimare Cost", heading_style))
+            elements.append(Paragraph(remove_diacritics("Estimare Cost"), heading_style))
             cost_data = [
-                ['Cost estimat total:', f"{project_data.get('estimated_cost', 0):.2f} RON"]
+                [remove_diacritics('Cost estimat total:'), f"{project_data.get('estimated_cost', 0):.2f} RON"]
             ]
             cost_table = Table(cost_data, colWidths=[60*mm, 80*mm])
             cost_table.setStyle(TableStyle([
@@ -216,20 +243,20 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     
     # Add Notes
     if project_data.get('notes'):
-        elements.append(Paragraph("Note", heading_style))
-        elements.append(Paragraph(project_data.get('notes'), normal_style))
+        elements.append(Paragraph(remove_diacritics("Note"), heading_style))
+        elements.append(Paragraph(remove_diacritics(project_data.get('notes')), normal_style))
         elements.append(Spacer(1, 10*mm))
     
     # Add Footer with Terms
     elements.append(Spacer(1, 15*mm))
-    elements.append(Paragraph("Termeni și Condiții", heading_style))
+    elements.append(Paragraph(remove_diacritics("Termeni și Condiții"), heading_style))
     
     terms = [
-        "• Prețurile sunt exprimate în RON și nu includ TVA.",
-        "• Oferta este valabilă 30 de zile de la data emiterii.",
-        "• Timpul de livrare va fi confirmat la plasarea comenzii.",
-        "• Montajul și punerea în funcțiune sunt incluse în preț.",
-        "• Garanție conform specificațiilor producătorilor."
+        remove_diacritics("• Prețurile sunt exprimate în RON și nu includ TVA."),
+        remove_diacritics("• Oferta este valabilă 30 de zile de la data emiterii."),
+        remove_diacritics("• Timpul de livrare va fi confirmat la plasarea comenzii."),
+        remove_diacritics("• Montajul și punerea în funcțiune sunt incluse în preț."),
+        remove_diacritics("• Garanție conform specificațiilor producătorilor.")
     ]
     
     for term in terms:
