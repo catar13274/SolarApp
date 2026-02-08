@@ -39,6 +39,9 @@ def main():
         else:
             db_path = Path(db_path)
         
+        # Create parent directory if it doesn't exist
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        
         print(f"Database file: {db_path}")
         
         # Check if database already exists

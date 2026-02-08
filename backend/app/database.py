@@ -1,13 +1,28 @@
 """Database connection and initialization."""
 
 import os
+from pathlib import Path
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
 
 # Get database URL from environment or use default SQLite
-DATABASE_URL = os.getenv("SOLARAPP_DB_URL", "sqlite:///./solarapp.db")
+DATABASE_URL = os.getenv("SOLARAPP_DB_URL", "sqlite:///./data/solarapp.db")
+
+# Ensure the database directory exists for SQLite databases
+if "sqlite:///" in DATABASE_URL:
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    # Convert to absolute path if relative
+    if db_path.startswith("./"):
+        # Relative to backend directory
+        backend_dir = Path(__file__).parent.parent
+        db_file = backend_dir / db_path[2:]
+    else:
+        db_file = Path(db_path)
+    
+    # Create parent directory if it doesn't exist
+    db_file.parent.mkdir(parents=True, exist_ok=True)
 
 # Optimize SQLite settings for Raspberry Pi and SD card performance
 sqlite_connect_args = {"check_same_thread": False}
