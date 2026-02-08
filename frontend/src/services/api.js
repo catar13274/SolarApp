@@ -63,6 +63,8 @@ export const purchases = {
   getAll: (params) => api.get('/api/v1/purchases/', { params }),
   getById: (id) => api.get(`/api/v1/purchases/${id}`),
   create: (data) => api.post('/api/v1/purchases/', data),
+  addItemToStock: (purchaseId, itemId, materialId) => 
+    api.post(`/api/v1/purchases/${purchaseId}/items/${itemId}/add-to-stock`, { material_id: materialId }),
 }
 
 // Invoices API

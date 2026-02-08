@@ -8,7 +8,7 @@ from datetime import datetime
 
 from ..database import get_session
 from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed
-from ..pdf_service import generate_commercial_offer_pdf
+from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -295,7 +295,7 @@ def export_project_pdf(project_id: int, session: Session = Depends(get_session))
         pdf_bytes = generate_commercial_offer_pdf(project_data, materials_list)
         
         # Create filename
-        filename = f"Oferta_Comerciala_{project.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        filename = f"Oferta_Comerciala_{remove_diacritics(project.name.replace(' ', '_'))}_{datetime.now().strftime('%Y%m%d')}.pdf"
         
         # Return PDF as response
         return Response(
