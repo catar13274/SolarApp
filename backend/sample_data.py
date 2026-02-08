@@ -2,8 +2,12 @@
 
 import os
 from datetime import date, datetime
+from dotenv import load_dotenv
 from sqlmodel import Session, create_engine, SQLModel
 from app.models import Material, Stock, Project, ProjectMaterial, Purchase, PurchaseItem
+
+# Load environment variables
+load_dotenv()
 
 # Get database URL from environment or use default
 DATABASE_URL = os.getenv("SOLARAPP_DB_URL", "sqlite:///./solarapp.db")
