@@ -5,6 +5,7 @@ import MaterialsPage from './pages/MaterialsPage'
 import StockPage from './pages/StockPage'
 import ProjectsPage from './pages/ProjectsPage'
 import InvoicesPage from './pages/InvoicesPage'
+import PurchaseDetailsPage from './pages/PurchaseDetailsPage'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/stock" element={<StockPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/invoices" element={<InvoicesPage />} />
+        <Route path="/purchases/:id" element={<PurchaseDetailsPage />} />
       </Routes>
     </Layout>
   )

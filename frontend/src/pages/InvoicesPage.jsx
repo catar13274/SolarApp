@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { Upload, FileText, ExternalLink } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { invoices } from '../services/api'
@@ -27,7 +28,7 @@ const InvoicesPage = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
           <p className="mt-1 text-gray-600">
-            Upload and manage XML invoices (e-Factura format)
+            Upload and manage invoices (XML, PDF, DOC, XLS, TXT formats)
           </p>
         </div>
         <Button onClick={() => setIsUploadModalOpen(true)}>
@@ -90,13 +91,13 @@ const InvoicesPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {invoice.purchase_id ? (
-                        <a
-                          href="#"
+                        <Link
+                          to={`/purchases/${invoice.purchase_id}`}
                           className="text-primary-600 hover:text-primary-900 inline-flex items-center gap-1"
                         >
                           View Purchase
                           <ExternalLink className="h-3 w-3" />
-                        </a>
+                        </Link>
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
@@ -113,7 +114,7 @@ const InvoicesPage = () => {
           <EmptyState
             icon={FileText}
             title="No invoices uploaded"
-            description="Upload your first XML invoice to get started"
+            description="Upload your first invoice to get started"
             action={
               <Button onClick={() => setIsUploadModalOpen(true)}>
                 <Upload className="h-5 w-5 mr-2" />
@@ -128,7 +129,7 @@ const InvoicesPage = () => {
       <Modal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        title="Upload XML Invoice"
+        title="Upload Invoice"
         size="lg"
       >
         <InvoiceUpload
