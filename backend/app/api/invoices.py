@@ -12,10 +12,6 @@ from ..models import Invoice, Purchase
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
-# Configuration for XML parser service
-XML_PARSER_URL = os.getenv("XML_PARSER_URL", "http://localhost:5000")
-XML_PARSER_TOKEN = os.getenv("XML_PARSER_TOKEN", "")
-
 
 @router.get("/", response_model=List[Invoice])
 def list_invoices(
@@ -53,6 +49,10 @@ async def upload_invoice(
     session: Session = Depends(get_session)
 ):
     """Upload and parse XML invoice, create purchase and update stock."""
+    # Read configuration from environment
+    xml_parser_url = os.getenv("XML_PARSER_URL", "http://localhost:5000")
+    xml_parser_token = os.getenv("XML_PARSER_TOKEN", "")
+    
     if not file.filename.endswith('.xml'):
         raise HTTPException(status_code=400, detail="Only XML files are allowed")
     
@@ -70,26 +70,38 @@ async def upload_invoice(
         async with httpx.AsyncClient() as client:
             with open(file_path, 'rb') as f:
                 files = {'file': (file.filename, f, 'application/xml')}
-                headers = {'X-API-Token': XML_PARSER_TOKEN} if XML_PARSER_TOKEN else {}
+                headers = {'X-API-Token': xml_parser_token} if xml_parser_token else {}
                 
                 response = await client.post(
-                    f"{XML_PARSER_URL}/parse",
+                    f"{xml_parser_url}/parse",
                     files=files,
                     headers=headers,
                     timeout=30.0
                 )
                 
-                if response.status_code != 200:
+                if response.status_code == 401:
                     raise HTTPException(
-                        status_code=500,
-                        detail="Failed to parse XML invoice"
+                        status_code=502,
+                        detail="XML parser authentication failed. Please check XML_PARSER_TOKEN configuration."
+                    )
+                elif response.status_code != 200:
+                    error_detail = "Failed to parse XML invoice"
+                    try:
+                        error_data = response.json()
+                        if 'error' in error_data:
+                            error_detail = f"XML parser error: {error_data['error']}"
+                    except:
+                        pass
+                    raise HTTPException(
+                        status_code=502,
+                        detail=error_detail
                     )
                 
                 parsed_data = response.json()
     except httpx.ConnectError:
         raise HTTPException(
             status_code=503,
-            detail=f"XML parser service is not available at {XML_PARSER_URL}. Please ensure the service is running."
+            detail=f"XML parser service is not available at {xml_parser_url}. Please ensure the service is running."
         )
     except httpx.TimeoutException:
         raise HTTPException(
