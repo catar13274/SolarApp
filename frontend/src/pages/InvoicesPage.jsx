@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { Upload, FileText, ExternalLink } from 'lucide-react'
+import { Upload, FileText, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { invoices } from '../services/api'
 import Card from '../components/Common/Card'
@@ -14,6 +14,7 @@ import InvoiceUpload from '../components/Invoices/InvoiceUpload'
 
 const InvoicesPage = () => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
+  const [deleteInvoiceId, setDeleteInvoiceId] = useState(null)
   
   const queryClient = useQueryClient()
 
@@ -21,6 +22,28 @@ const InvoicesPage = () => {
     queryKey: ['invoices'],
     queryFn: () => invoices.getAll().then(res => res.data),
   })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => invoices.delete(id),
+    onSuccess: () => {
+      toast.success('Invoice deleted successfully!')
+      queryClient.invalidateQueries(['invoices'])
+      setDeleteInvoiceId(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete invoice')
+    },
+  })
+
+  const handleDeleteClick = (id) => {
+    setDeleteInvoiceId(id)
+  }
+
+  const handleConfirmDelete = () => {
+    if (deleteInvoiceId) {
+      deleteMutation.mutate(deleteInvoiceId)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -67,6 +90,9 @@ const InvoicesPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Uploaded
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -105,6 +131,16 @@ const InvoicesPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(invoice.created_at).toLocaleDateString()}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleDeleteClick(invoice.id)}
+                        className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -139,6 +175,40 @@ const InvoicesPage = () => {
           }}
           onCancel={() => setIsUploadModalOpen(false)}
         />
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteInvoiceId !== null}
+        onClose={() => setDeleteInvoiceId(null)}
+        title="Delete Invoice"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Are you sure you want to delete this invoice? This action will also delete the associated purchase record and all its items.
+          </p>
+          <p className="text-sm text-red-600 font-medium">
+            This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDeleteInvoiceId(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete Invoice'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
