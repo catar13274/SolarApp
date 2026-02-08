@@ -7,9 +7,20 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from ..database import get_session
-from ..models import Purchase, PurchaseItem, StockMovement, Material, PurchaseCreate
+from ..models import Purchase, PurchaseItem, StockMovement, Material, PurchaseCreate, PurchaseItemUpdate, Stock
 
 router = APIRouter(prefix="/api/v1/purchases", tags=["purchases"])
+
+
+class CreateMaterialRequest(BaseModel):
+    """Request model for creating a new material from purchase item."""
+    name: str
+    sku: str
+    description: Optional[str] = None
+    category: str
+    unit: str = "buc"
+    unit_price: float
+    min_stock: int = 0
 
 
 class AddItemToStockRequest(BaseModel):
@@ -74,6 +85,119 @@ def add_purchase_item_to_stock(
         quantity=purchase_item.quantity
     )
 
+
+@router.post("/{purchase_id}/items/{item_id}/create-material", response_model=AddItemToStockResponse)
+def create_material_from_purchase_item(
+    purchase_id: int,
+    item_id: int,
+    request: CreateMaterialRequest,
+    session: Session = Depends(get_session)
+):
+    """Create a new material from a purchase item and add it to stock."""
+    # Get purchase
+    purchase = session.get(Purchase, purchase_id)
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Get purchase item
+    purchase_item = session.get(PurchaseItem, item_id)
+    if not purchase_item or purchase_item.purchase_id != purchase_id:
+        raise HTTPException(status_code=404, detail="Purchase item not found")
+    
+    # Check if SKU already exists
+    existing = session.exec(
+        select(Material).where(Material.sku == request.sku)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="SKU already exists")
+    
+    # Create new material
+    material = Material(
+        name=request.name,
+        sku=request.sku,
+        description=request.description,
+        category=request.category,
+        unit=request.unit,
+        unit_price=request.unit_price,
+        min_stock=request.min_stock,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    session.add(material)
+    session.commit()
+    session.refresh(material)
+    
+    # Create initial stock entry
+    stock = Stock(
+        material_id=material.id,
+        quantity=0.0,
+        location="Main Warehouse",
+        updated_at=datetime.utcnow()
+    )
+    session.add(stock)
+    
+    # Update purchase item with material_id
+    purchase_item.material_id = material.id
+    session.add(purchase_item)
+    
+    # Create stock movement
+    movement = StockMovement(
+        material_id=material.id,
+        movement_type="in",
+        quantity=purchase_item.quantity,
+        reference_type="purchase",
+        reference_id=purchase_id,
+        notes=f"Created material from purchase {purchase.invoice_number or purchase_id}",
+        created_at=datetime.utcnow()
+    )
+    session.add(movement)
+    
+    session.commit()
+    session.refresh(purchase_item)
+    
+    return AddItemToStockResponse(
+        message="Material created and item added to stock successfully",
+        item_id=purchase_item.id,
+        material_id=material.id,
+        quantity=purchase_item.quantity
+    )
+
+
+@router.put("/{purchase_id}/items/{item_id}", response_model=PurchaseItem)
+def update_purchase_item(
+    purchase_id: int,
+    item_id: int,
+    item_update: PurchaseItemUpdate,
+    session: Session = Depends(get_session)
+):
+    """Update a purchase item."""
+    # Get purchase
+    purchase = session.get(Purchase, purchase_id)
+    if not purchase:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    
+    # Get purchase item
+    purchase_item = session.get(PurchaseItem, item_id)
+    if not purchase_item or purchase_item.purchase_id != purchase_id:
+        raise HTTPException(status_code=404, detail="Purchase item not found")
+    
+    # Update fields if provided
+    if item_update.description is not None:
+        purchase_item.description = item_update.description
+    if item_update.sku is not None:
+        purchase_item.sku = item_update.sku
+    if item_update.quantity is not None:
+        purchase_item.quantity = item_update.quantity
+    if item_update.unit_price is not None:
+        purchase_item.unit_price = item_update.unit_price
+    if item_update.total_price is not None:
+        purchase_item.total_price = item_update.total_price
+    
+    session.add(purchase_item)
+    session.commit()
+    session.refresh(purchase_item)
+    
+    return purchase_item
 
 
 @router.get("/", response_model=List[Purchase])

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Package, FileText, Plus } from 'lucide-react'
+import { ArrowLeft, Package, FileText, Plus, Edit2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { purchases, materials } from '../services/api'
 import Card from '../components/Common/Card'
@@ -9,6 +9,7 @@ import Badge from '../components/Common/Badge'
 import LoadingSpinner from '../components/Common/LoadingSpinner'
 import Modal from '../components/Common/Modal'
 import Select from '../components/Common/Select'
+import Input from '../components/Common/Input'
 import { useState } from 'react'
 
 const PurchaseDetailsPage = () => {
@@ -16,8 +17,20 @@ const PurchaseDetailsPage = () => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [isAddToStockModalOpen, setIsAddToStockModalOpen] = useState(false)
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false)
+  const [isCreateMaterialModalOpen, setIsCreateMaterialModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
   const [selectedMaterialId, setSelectedMaterialId] = useState('')
+  const [editFormData, setEditFormData] = useState({})
+  const [createMaterialForm, setCreateMaterialForm] = useState({
+    name: '',
+    sku: '',
+    description: '',
+    category: 'panel',
+    unit: 'buc',
+    unit_price: 0,
+    min_stock: 0,
+  })
 
   const { data: purchase, isLoading } = useQuery({
     queryKey: ['purchase', id],
@@ -44,9 +57,61 @@ const PurchaseDetailsPage = () => {
     },
   })
 
+  const editItemMutation = useMutation({
+    mutationFn: ({ itemId, data }) => 
+      purchases.updateItem(id, itemId, data),
+    onSuccess: () => {
+      toast.success('Item updated successfully!')
+      queryClient.invalidateQueries(['purchase', id])
+      setIsEditItemModalOpen(false)
+      setSelectedItem(null)
+      setEditFormData({})
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to update item')
+    },
+  })
+
+  const createMaterialMutation = useMutation({
+    mutationFn: ({ itemId, data }) => 
+      purchases.createMaterialFromItem(id, itemId, data),
+    onSuccess: () => {
+      toast.success('Material created and item added to stock!')
+      queryClient.invalidateQueries(['purchase', id])
+      queryClient.invalidateQueries(['materials'])
+      setIsCreateMaterialModalOpen(false)
+      setIsAddToStockModalOpen(false)
+      setSelectedItem(null)
+      setCreateMaterialForm({
+        name: '',
+        sku: '',
+        description: '',
+        category: 'panel',
+        unit: 'buc',
+        unit_price: 0,
+        min_stock: 0,
+      })
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to create material')
+    },
+  })
+
   const handleAddToStock = (item) => {
     setSelectedItem(item)
     setIsAddToStockModalOpen(true)
+  }
+
+  const handleEditItem = (item) => {
+    setSelectedItem(item)
+    setEditFormData({
+      description: item.description,
+      sku: item.sku || '',
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total_price: item.total_price,
+    })
+    setIsEditItemModalOpen(true)
   }
 
   const handleConfirmAddToStock = () => {
@@ -54,6 +119,39 @@ const PurchaseDetailsPage = () => {
       addToStockMutation.mutate({
         itemId: selectedItem.id,
         materialId: parseInt(selectedMaterialId, 10)
+      })
+    }
+  }
+
+  const handleConfirmEditItem = () => {
+    if (selectedItem) {
+      editItemMutation.mutate({
+        itemId: selectedItem.id,
+        data: editFormData
+      })
+    }
+  }
+
+  const handleOpenCreateMaterial = () => {
+    if (selectedItem) {
+      setCreateMaterialForm({
+        name: selectedItem.description,
+        sku: selectedItem.sku || '',
+        description: selectedItem.description,
+        category: 'panel',
+        unit: 'buc',
+        unit_price: selectedItem.unit_price,
+        min_stock: 0,
+      })
+      setIsCreateMaterialModalOpen(true)
+    }
+  }
+
+  const handleConfirmCreateMaterial = () => {
+    if (selectedItem) {
+      createMaterialMutation.mutate({
+        itemId: selectedItem.id,
+        data: createMaterialForm
       })
     }
   }
@@ -204,18 +302,28 @@ const PurchaseDetailsPage = () => {
                         {item.total_price.toFixed(2)} {purchase.currency}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        {!item.material_id ? (
+                        <div className="flex items-center gap-2">
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => handleAddToStock(item)}
+                            onClick={() => handleEditItem(item)}
                           >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Add to Stock
+                            <Edit2 className="h-4 w-4 mr-1" />
+                            Edit
                           </Button>
-                        ) : (
-                          <Badge variant="success">In Stock</Badge>
-                        )}
+                          {!item.material_id ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleAddToStock(item)}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add to Stock
+                            </Button>
+                          ) : (
+                            <Badge variant="success">In Stock</Badge>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -283,6 +391,14 @@ const PurchaseDetailsPage = () => {
                 Cancel
               </Button>
               <Button
+                type="button"
+                variant="secondary"
+                onClick={handleOpenCreateMaterial}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Create New Material
+              </Button>
+              <Button
                 onClick={handleConfirmAddToStock}
                 disabled={!selectedMaterialId || addToStockMutation.isPending}
               >
@@ -291,6 +407,214 @@ const PurchaseDetailsPage = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Edit Item Modal */}
+      <Modal
+        isOpen={isEditItemModalOpen}
+        onClose={() => {
+          setIsEditItemModalOpen(false)
+          setSelectedItem(null)
+          setEditFormData({})
+        }}
+        title="Edit Purchase Item"
+        size="md"
+      >
+        {selectedItem && (
+          <div className="space-y-4">
+            <Input
+              label="Description"
+              value={editFormData.description || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+              required
+            />
+            
+            <Input
+              label="SKU"
+              value={editFormData.sku || ''}
+              onChange={(e) => setEditFormData({ ...editFormData, sku: e.target.value })}
+            />
+            
+            <Input
+              label="Quantity"
+              type="number"
+              step="0.01"
+              value={editFormData.quantity || 0}
+              onChange={(e) => {
+                const quantity = parseFloat(e.target.value)
+                const unitPrice = editFormData.unit_price || 0
+                setEditFormData({ 
+                  ...editFormData, 
+                  quantity,
+                  total_price: quantity * unitPrice
+                })
+              }}
+              required
+            />
+            
+            <Input
+              label="Unit Price"
+              type="number"
+              step="0.01"
+              value={editFormData.unit_price || 0}
+              onChange={(e) => {
+                const unitPrice = parseFloat(e.target.value)
+                const quantity = editFormData.quantity || 0
+                setEditFormData({ 
+                  ...editFormData, 
+                  unit_price: unitPrice,
+                  total_price: quantity * unitPrice
+                })
+              }}
+              required
+            />
+            
+            <Input
+              label="Total Price"
+              type="number"
+              step="0.01"
+              value={editFormData.total_price || 0}
+              readOnly
+              disabled
+            />
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsEditItemModalOpen(false)
+                  setSelectedItem(null)
+                  setEditFormData({})
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleConfirmEditItem}
+                disabled={editItemMutation.isPending}
+              >
+                {editItemMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Create Material Modal */}
+      <Modal
+        isOpen={isCreateMaterialModalOpen}
+        onClose={() => {
+          setIsCreateMaterialModalOpen(false)
+          setCreateMaterialForm({
+            name: '',
+            sku: '',
+            description: '',
+            category: 'panel',
+            unit: 'buc',
+            unit_price: 0,
+            min_stock: 0,
+          })
+        }}
+        title="Create New Material"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Name"
+              value={createMaterialForm.name}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, name: e.target.value })}
+              required
+            />
+            
+            <Input
+              label="SKU"
+              value={createMaterialForm.sku}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, sku: e.target.value })}
+              required
+            />
+          </div>
+
+          <Input
+            label="Description"
+            value={createMaterialForm.description}
+            onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, description: e.target.value })}
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category
+              </label>
+              <Select
+                value={createMaterialForm.category}
+                onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, category: e.target.value })}
+                required
+              >
+                <option value="panel">Solar Panel</option>
+                <option value="inverter">Inverter</option>
+                <option value="battery">Battery</option>
+                <option value="cable">Cable</option>
+                <option value="mounting">Mounting</option>
+                <option value="other">Other</option>
+              </Select>
+            </div>
+
+            <Input
+              label="Unit"
+              value={createMaterialForm.unit}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, unit: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Unit Price"
+              type="number"
+              step="0.01"
+              value={createMaterialForm.unit_price}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, unit_price: parseFloat(e.target.value) })}
+              required
+            />
+            
+            <Input
+              label="Minimum Stock"
+              type="number"
+              value={createMaterialForm.min_stock}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, min_stock: parseInt(e.target.value) })}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsCreateMaterialModalOpen(false)
+                setCreateMaterialForm({
+                  name: '',
+                  sku: '',
+                  description: '',
+                  category: 'panel',
+                  unit: 'buc',
+                  unit_price: 0,
+                  min_stock: 0,
+                })
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmCreateMaterial}
+              disabled={createMaterialMutation.isPending || !createMaterialForm.name || !createMaterialForm.sku}
+            >
+              {createMaterialMutation.isPending ? 'Creating...' : 'Create and Add to Stock'}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

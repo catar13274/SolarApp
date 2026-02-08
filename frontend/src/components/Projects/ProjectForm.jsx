@@ -21,6 +21,12 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
       end_date: '',
       estimated_cost: 0,
       actual_cost: 0,
+      labor_cost_estimated: 0,
+      labor_cost_actual: 0,
+      transport_cost_estimated: 0,
+      transport_cost_actual: 0,
+      other_costs_estimated: 0,
+      other_costs_actual: 0,
       notes: '',
     }
   })
@@ -71,6 +77,21 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
     } else {
       data.actual_cost = null
     }
+
+    // Convert cost breakdown fields
+    const costFields = [
+      'labor_cost_estimated', 'labor_cost_actual',
+      'transport_cost_estimated', 'transport_cost_actual',
+      'other_costs_estimated', 'other_costs_actual'
+    ]
+    costFields.forEach(field => {
+      if (data[field]) {
+        data[field] = parseFloat(data[field])
+        if (isNaN(data[field])) data[field] = null
+      } else {
+        data[field] = null
+      }
+    })
     
     // Convert empty strings to null for optional fields
     if (!data.start_date || data.start_date === '') data.start_date = null
@@ -174,6 +195,65 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
           {...register('actual_cost')}
           error={errors.actual_cost?.message}
         />
+      </div>
+
+      {/* Cost Breakdown Section */}
+      <div className="border-t pt-4 mt-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Breakdown</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Labor Cost - Estimated (RON)"
+            type="number"
+            step="0.01"
+            {...register('labor_cost_estimated')}
+            error={errors.labor_cost_estimated?.message}
+          />
+          
+          <Input
+            label="Labor Cost - Actual (RON)"
+            type="number"
+            step="0.01"
+            {...register('labor_cost_actual')}
+            error={errors.labor_cost_actual?.message}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Transport Cost - Estimated (RON)"
+            type="number"
+            step="0.01"
+            {...register('transport_cost_estimated')}
+            error={errors.transport_cost_estimated?.message}
+          />
+          
+          <Input
+            label="Transport Cost - Actual (RON)"
+            type="number"
+            step="0.01"
+            {...register('transport_cost_actual')}
+            error={errors.transport_cost_actual?.message}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Other Costs - Estimated (RON)"
+            type="number"
+            step="0.01"
+            {...register('other_costs_estimated')}
+            error={errors.other_costs_estimated?.message}
+          />
+          
+          <Input
+            label="Other Costs - Actual (RON)"
+            type="number"
+            step="0.01"
+            {...register('other_costs_actual')}
+            error={errors.other_costs_actual?.message}
+          />
+        </div>
       </div>
 
       <div>

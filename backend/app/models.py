@@ -59,6 +59,13 @@ class Project(SQLModel, table=True):
     end_date: Optional[date] = None
     estimated_cost: Optional[float] = None
     actual_cost: Optional[float] = None
+    # Cost breakdown fields
+    labor_cost_estimated: Optional[float] = None
+    labor_cost_actual: Optional[float] = None
+    transport_cost_estimated: Optional[float] = None
+    transport_cost_actual: Optional[float] = None
+    other_costs_estimated: Optional[float] = None
+    other_costs_actual: Optional[float] = None
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -126,6 +133,15 @@ class PurchaseItemCreate(BaseModel):
     quantity: float
     unit_price: float
     total_price: float
+
+
+class PurchaseItemUpdate(BaseModel):
+    """Model for updating purchase items."""
+    description: Optional[str] = None
+    sku: Optional[str] = None
+    quantity: Optional[float] = None
+    unit_price: Optional[float] = None
+    total_price: Optional[float] = None
 
 
 class PurchaseCreate(BaseModel):

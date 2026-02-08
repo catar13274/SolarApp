@@ -63,8 +63,12 @@ export const purchases = {
   getAll: (params) => api.get('/api/v1/purchases/', { params }),
   getById: (id) => api.get(`/api/v1/purchases/${id}`),
   create: (data) => api.post('/api/v1/purchases/', data),
+  updateItem: (purchaseId, itemId, data) => 
+    api.put(`/api/v1/purchases/${purchaseId}/items/${itemId}`, data),
   addItemToStock: (purchaseId, itemId, materialId) => 
     api.post(`/api/v1/purchases/${purchaseId}/items/${itemId}/add-to-stock`, { material_id: materialId }),
+  createMaterialFromItem: (purchaseId, itemId, data) =>
+    api.post(`/api/v1/purchases/${purchaseId}/items/${itemId}/create-material`, data),
 }
 
 // Invoices API
