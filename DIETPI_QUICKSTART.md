@@ -2,6 +2,10 @@
 
 This is a quick reference for deploying SolarApp on Raspberry Pi with Diet Pi OS. For complete details, see [DIETPI.md](DIETPI.md).
 
+## ⚠️ Important Note
+
+If you encounter "502 Bad Gateway" or API connection errors, see [TROUBLESHOOTING_502.md](TROUBLESHOOTING_502.md). The most common cause is building the frontend with a hardcoded IP address in `VITE_API_URL`.
+
 ## What You Get
 
 - ✅ **Frontend**: Built React app served by nginx (port 80)
