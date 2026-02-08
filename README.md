@@ -385,7 +385,21 @@ Contributions are welcome! Here's how you can help:
 
 **📋 For detailed logging and troubleshooting commands**, see [LOGGING.md](LOGGING.md)
 
+**⚠️ For 502 Bad Gateway / API Connection Errors**, see [TROUBLESHOOTING_502.md](TROUBLESHOOTING_502.md)
+
+**🔧 For Frontend Build Configuration**, see [frontend/BUILD.md](frontend/BUILD.md)
+
 ### Common Issues
+
+**502 Bad Gateway or API connection errors:**
+```bash
+# This usually happens when the frontend was built with a hardcoded IP
+# See TROUBLESHOOTING_502.md for detailed fix
+cd frontend
+rm -f .env .env.local .env.production
+npm run build
+sudo systemctl restart nginx
+```
 
 **Service not starting or errors:**
 ```bash

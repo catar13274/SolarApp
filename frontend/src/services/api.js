@@ -1,7 +1,14 @@
 import axios from 'axios'
 
+// API Configuration
+// 
 // In development mode (no VITE_API_URL set), use empty baseURL to leverage Vite's proxy
-// In production, VITE_API_URL should be set to the actual backend URL
+// In production with nginx, leave VITE_API_URL empty - nginx proxies /api to backend
+// Only set VITE_API_URL for standalone deployments without nginx
+//
+// IMPORTANT: Do not set VITE_API_URL to hardcoded IP addresses (e.g., http://192.168.x.x)
+// This will cause the app to fail when the IP changes or the server is unreachable.
+// See frontend/BUILD.md for detailed configuration guide.
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 // Log API configuration in development

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node validate-build.js && vite build",
     "preview": "vite preview",
     "lint": "eslint ."
   },
