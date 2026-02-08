@@ -90,7 +90,7 @@ async def upload_invoice(
                         error_data = response.json()
                         if 'error' in error_data:
                             error_detail = f"XML parser error: {error_data['error']}"
-                    except:
+                    except Exception:
                         pass
                     raise HTTPException(
                         status_code=502,
@@ -109,7 +109,6 @@ async def upload_invoice(
             detail="XML parser service timed out. Please try again later."
         )
     except HTTPException:
-        # Re-raise HTTP exceptions as-is
         raise
     except Exception as e:
         raise HTTPException(
