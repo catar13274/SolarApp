@@ -3,12 +3,16 @@
 import os
 import logging
 from pathlib import Path
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlmodel import Session, select
+
+# Load environment variables from .env file
+load_dotenv()
 
 from .database import create_db_and_tables, get_session
 from .models import Material, Stock, Project
