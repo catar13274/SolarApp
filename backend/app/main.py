@@ -1,6 +1,7 @@
 """FastAPI main application."""
 
 import os
+import logging
 from pathlib import Path
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
@@ -12,6 +13,9 @@ from sqlmodel import Session, select
 from .database import create_db_and_tables, get_session
 from .models import Material, Stock, Project
 from .api import materials, stock, projects, purchases, invoices
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -113,15 +117,18 @@ async def serve_frontend(full_path: str):
             "api_docs": "/docs"
         }
     
-    # Check if specific file exists (for static assets like vite.svg)
+    # Check if specific file exists (for static assets like vite.svg, favicon.ico)
     # Prevent path traversal attacks by resolving and validating the path
     try:
         file_path = (frontend_dist / full_path).resolve()
         # Ensure the resolved path is within frontend_dist
         if file_path.is_relative_to(frontend_dist) and file_path.exists() and file_path.is_file():
             return FileResponse(file_path)
-    except (ValueError, RuntimeError):
-        # Invalid path, continue to serve index.html
+    except (ValueError, RuntimeError, OSError) as e:
+        # Invalid path or OS error, continue to serve index.html
+        # Log the error in development mode without exposing full paths
+        if os.getenv("ENVIRONMENT") == "development":
+            logger.warning(f"Could not serve static file: {type(e).__name__}")
         pass
     
     # For all other routes, serve index.html (SPA routing)
