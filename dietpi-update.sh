@@ -257,7 +257,14 @@ if command -v npm &> /dev/null; then
     print_info "Installing/updating frontend dependencies..."
     npm install --silent
     
+    # Check for hardcoded VITE_API_URL
+    if [ -n "$VITE_API_URL" ]; then
+        print_warning "VITE_API_URL environment variable is set: $VITE_API_URL"
+        print_note "For nginx deployments, VITE_API_URL should be empty."
+    fi
+    
     print_info "Building frontend for production..."
+    print_note "Build validation will check for hardcoded IP addresses..."
     npm run build
     
     cd "$INSTALL_DIR"

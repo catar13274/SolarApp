@@ -2,6 +2,17 @@
 
 This guide provides step-by-step instructions for running SolarApp on Raspberry Pi with Diet Pi OS, using nginx to serve the frontend.
 
+## ⚠️ Important: API Configuration
+
+**Before building the frontend**, ensure you do not set `VITE_API_URL` to a hardcoded IP address. 
+
+- ✅ **Correct**: Leave `VITE_API_URL` empty (default) - nginx will proxy `/api` requests
+- ❌ **Wrong**: Setting `VITE_API_URL=http://192.168.x.x` - causes 502 errors when IP changes
+
+See [TROUBLESHOOTING_502.md](TROUBLESHOOTING_502.md) if you encounter API connection errors.
+
+For detailed build configuration, see [frontend/BUILD.md](frontend/BUILD.md).
+
 ## What is Diet Pi?
 
 Diet Pi is an extremely lightweight Debian-based operating system optimized for Raspberry Pi and other single-board computers. It's perfect for SolarApp because:

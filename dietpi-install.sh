@@ -175,7 +175,16 @@ if command -v npm &> /dev/null; then
         npm install --silent
     fi
     
+    # Ensure no hardcoded VITE_API_URL is set
+    if [ -n "$VITE_API_URL" ]; then
+        print_warning "VITE_API_URL environment variable is set: $VITE_API_URL"
+        print_warning "This will be baked into the frontend build."
+        print_note "For nginx deployments, VITE_API_URL should be empty (nginx proxies /api)."
+        print_note "Continuing with current VITE_API_URL setting..."
+    fi
+    
     print_info "Building frontend for production..."
+    print_note "Build validation will check for hardcoded IP addresses..."
     npm run build
     cd ..
     

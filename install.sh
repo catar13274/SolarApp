@@ -216,8 +216,17 @@ if [ "$FRONTEND_AVAILABLE" = "true" ]; then
     print_info "Installing Node.js dependencies (this may take a few minutes)..."
     npm install
     
+    # Check for hardcoded VITE_API_URL
+    if [ -n "$VITE_API_URL" ]; then
+        print_warning "VITE_API_URL environment variable is set: $VITE_API_URL"
+        print_warning "This will be baked into the frontend build."
+        print_note "For production deployments with nginx, VITE_API_URL should be empty."
+        print_note "Continuing with current VITE_API_URL setting..."
+    fi
+    
     # Build frontend
     print_info "Building frontend..."
+    print_note "Build validation will check for hardcoded IP addresses..."
     npm run build
     
     cd ..
