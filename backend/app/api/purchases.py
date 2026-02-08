@@ -15,9 +15,17 @@ router = APIRouter(prefix="/api/v1/purchases", tags=["purchases"])
 class AddItemToStockRequest(BaseModel):
     """Request model for adding purchase item to stock."""
     material_id: int
+
+
+class AddItemToStockResponse(BaseModel):
+    """Response model for adding purchase item to stock."""
+    message: str
+    item_id: int
+    material_id: int
+    quantity: float
     
 
-@router.post("/{purchase_id}/items/{item_id}/add-to-stock")
+@router.post("/{purchase_id}/items/{item_id}/add-to-stock", response_model=AddItemToStockResponse)
 def add_purchase_item_to_stock(
     purchase_id: int,
     item_id: int,
@@ -51,7 +59,7 @@ def add_purchase_item_to_stock(
         quantity=purchase_item.quantity,
         reference_type="purchase",
         reference_id=purchase_id,
-        notes=f"Added from purchase {purchase.invoice_number or purchase_id} - {purchase_item.description}",
+        notes=f"Added from purchase {purchase.invoice_number or purchase_id}",
         created_at=datetime.utcnow()
     )
     session.add(movement)
@@ -59,11 +67,12 @@ def add_purchase_item_to_stock(
     session.commit()
     session.refresh(purchase_item)
     
-    return {
-        "message": "Item added to stock successfully",
-        "purchase_item": purchase_item.model_dump(),
-        "stock_movement_id": movement.id
-    }
+    return AddItemToStockResponse(
+        message="Item added to stock successfully",
+        item_id=purchase_item.id,
+        material_id=request.material_id,
+        quantity=purchase_item.quantity
+    )
 
 
 

@@ -53,7 +53,7 @@ const PurchaseDetailsPage = () => {
     if (selectedItem && selectedMaterialId) {
       addToStockMutation.mutate({
         itemId: selectedItem.id,
-        materialId: parseInt(selectedMaterialId)
+        materialId: parseInt(selectedMaterialId, 10)
       })
     }
   }
