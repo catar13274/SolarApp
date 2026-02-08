@@ -224,7 +224,7 @@ def parse_line_item(line: str) -> Optional[Dict]:
     """
     # Skip lines that are likely headers or totals
     line_lower = line.lower()
-    if any(keyword in line_lower for keyword in ['total', 'subtotal', 'tva', 'tax', 'discount']):
+    if any(keyword in line_lower for keyword in ['total', 'subtotal', 'tva', 'tax', 'discount', 'descriere', 'description', 'cantitate', 'quantity']):
         return None
     
     # Extract numbers from the line
@@ -238,44 +238,54 @@ def parse_line_item(line: str) -> Optional[Dict]:
     except ValueError:
         return None
     
-    # Heuristic: If we have at least 2 numbers, assume quantity and price
-    if len(numeric_values) >= 2:
+    # Heuristic: If we have 3 or more numbers, the pattern is likely: quantity, unit_price, total_price
+    # If we have exactly 2 numbers, assume quantity and price (calculate total)
+    if len(numeric_values) >= 3:
+        # Take the last 3 numbers as quantity, unit_price, total_price
+        quantity = numeric_values[-3]
+        unit_price = numeric_values[-2]
+        total_price = numeric_values[-1]
+    elif len(numeric_values) == 2:
         quantity = numeric_values[0]
-        unit_price = numeric_values[1] if len(numeric_values) > 1 else 0.0
-        total_price = numeric_values[2] if len(numeric_values) > 2 else quantity * unit_price
-        
-        # Extract description (text before first number)
-        desc_match = re.match(r'^(.+?)\s*\d', line)
-        description = desc_match.group(1).strip() if desc_match else line[:50].strip()
-        
-        # Skip if description is too short or looks like a number
-        if len(description) < 3 or description.replace(' ', '').isdigit():
-            return None
-        
-        return {
-            'description': description,
-            'sku': '',
-            'quantity': quantity,
-            'unit_price': unit_price,
-            'total_price': total_price
-        }
+        unit_price = numeric_values[1]
+        total_price = quantity * unit_price
+    else:
+        return None
     
-    return None
+    # Extract description (text before numbers start)
+    # Find position of first number
+    first_num_match = re.search(r'\d', line)
+    if first_num_match:
+        description = line[:first_num_match.start()].strip()
+    else:
+        description = line[:50].strip()
+    
+    # Skip if description is too short or looks like a number
+    if len(description) < 3 or description.replace(' ', '').isdigit():
+        return None
+    
+    return {
+        'description': description,
+        'sku': '',
+        'quantity': quantity,
+        'unit_price': unit_price,
+        'total_price': total_price
+    }
 
 
 def normalize_date(date_str: str) -> str:
     """Normalize date string to ISO format (YYYY-MM-DD)."""
     # Try different date formats
     patterns = [
-        (r'(\d{1,2})[\./-](\d{1,2})[\./-](\d{4})', lambda m: f"{m[3]}-{m[2].zfill(2)}-{m[1].zfill(2)}"),
-        (r'(\d{1,2})[\./-](\d{1,2})[\./-](\d{2})', lambda m: f"20{m[3]}-{m[2].zfill(2)}-{m[1].zfill(2)}"),
-        (r'(\d{4})-(\d{2})-(\d{2})', lambda m: f"{m[1]}-{m[2]}-{m[3]}"),
+        (r'(\d{1,2})[\./-](\d{1,2})[\./-](\d{4})', lambda m: f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"),
+        (r'(\d{1,2})[\./-](\d{1,2})[\./-](\d{2})', lambda m: f"20{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"),
+        (r'(\d{4})-(\d{2})-(\d{2})', lambda m: f"{m.group(1)}-{m.group(2)}-{m.group(3)}"),
     ]
     
     for pattern, formatter in patterns:
         match = re.match(pattern, date_str)
         if match:
-            return formatter(match.groups())
+            return formatter(match)
     
     return date_str
 
