@@ -146,7 +146,7 @@ SOLARAPP_DB_URL=sqlite:////home/pi/SolarApp/backend/data/solarapp.db
 
 # XML Parser
 XML_PARSER_URL=http://localhost:5000
-XML_PARSER_TOKEN=your-secure-token-here
+XML_PARSER_TOKEN=dev-token-12345  # Use default token (change for production)
 
 # CORS (adjust for your network)
 CORS_ORIGINS=http://raspberrypi.local:3000,http://raspberrypi.local:5173
