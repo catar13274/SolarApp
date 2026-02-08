@@ -9,6 +9,7 @@ import Select from '../Common/Select'
 const ProjectForm = ({ project, onSuccess, onCancel }) => {
   const queryClient = useQueryClient()
   const { register, handleSubmit, formState: { errors } } = useForm({
+    mode: 'onChange',
     defaultValues: project || {
       name: '',
       client_name: '',

@@ -9,6 +9,7 @@ import Select from '../Common/Select'
 const StockMovementForm = ({ onSuccess, onCancel }) => {
   const queryClient = useQueryClient()
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
+    mode: 'onChange',
     defaultValues: {
       material_id: '',
       movement_type: 'in',

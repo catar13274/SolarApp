@@ -9,6 +9,7 @@ import Select from '../Common/Select'
 const MaterialForm = ({ material, onSuccess, onCancel }) => {
   const queryClient = useQueryClient()
   const { register, handleSubmit, formState: { errors } } = useForm({
+    mode: 'onChange',
     defaultValues: material || {
       name: '',
       sku: '',
