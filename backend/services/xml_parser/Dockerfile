@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY parser_app.py .
 
 ENV PORT=5000
-ENV XML_PARSER_TOKEN=""
+ENV XML_PARSER_TOKEN=dev-token-12345
 
 EXPOSE 5000
 
