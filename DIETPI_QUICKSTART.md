@@ -125,6 +125,23 @@ sudo nano /etc/nginx/nginx.conf
 
 ## Updating the Application
 
+### Automated Update (Recommended)
+
+```bash
+cd /home/dietpi/SolarApp
+sudo ./dietpi-update.sh
+```
+
+The automated script handles everything:
+- Stops services
+- Backs up database automatically
+- Pulls latest changes
+- Updates all dependencies
+- Rebuilds frontend
+- Restarts services
+
+### Manual Update
+
 ```bash
 cd /home/dietpi/SolarApp
 
@@ -161,6 +178,22 @@ cd ..
 sudo systemctl start solarapp-backend solarapp-xml-parser
 sudo systemctl restart nginx
 ```
+
+## Uninstalling SolarApp
+
+### Automated Uninstall (Recommended)
+
+```bash
+cd /home/dietpi/SolarApp
+sudo ./dietpi-uninstall.sh
+```
+
+The script will:
+- Stop and remove all services
+- Remove nginx configuration
+- Optionally backup database
+- Clean up application files
+- Ask for confirmation before each step
 
 ## Troubleshooting
 

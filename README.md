@@ -243,6 +243,37 @@ The Diet Pi installer will:
 - Built-in software manager for easy updates
 - Optimized for headless operation
 
+### 🔄 Updating SolarApp on Diet Pi
+
+To update your SolarApp installation:
+
+```bash
+cd SolarApp
+sudo ./dietpi-update.sh
+```
+
+The update script automatically:
+- Backs up your database
+- Pulls latest changes
+- Updates all dependencies
+- Rebuilds the frontend
+- Restarts services
+
+### 🗑️ Uninstalling SolarApp from Diet Pi
+
+To remove SolarApp:
+
+```bash
+cd SolarApp
+sudo ./dietpi-uninstall.sh
+```
+
+The uninstall script will:
+- Stop and remove all services
+- Remove nginx configuration
+- Optionally backup your database
+- Clean up application files
+
 ## 📖 Usage
 
 ### Accessing the Application
