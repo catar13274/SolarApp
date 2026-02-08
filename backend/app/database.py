@@ -13,13 +13,13 @@ DATABASE_URL = os.getenv("SOLARAPP_DB_URL", "sqlite:///./data/solarapp.db")
 # Ensure the database directory exists for SQLite databases
 if "sqlite:///" in DATABASE_URL:
     db_path = DATABASE_URL.replace("sqlite:///", "")
-    # Convert to absolute path if relative
+    # Convert to absolute path
     if db_path.startswith("./"):
-        # Relative to backend directory
-        backend_dir = Path(__file__).parent.parent
-        db_file = backend_dir / db_path[2:]
+        # Relative to the current working directory (typically the backend directory)
+        db_file = (Path.cwd() / db_path[2:]).resolve()
     else:
-        db_file = Path(db_path)
+        # Absolute path
+        db_file = Path(db_path).resolve()
     
     # Create parent directory if it doesn't exist
     db_file.parent.mkdir(parents=True, exist_ok=True)

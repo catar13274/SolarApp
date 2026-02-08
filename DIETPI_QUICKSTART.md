@@ -205,7 +205,12 @@ The script will:
 
 ```bash
 # This happens when the backend data directory doesn't exist
-# The latest version creates it automatically, but if you encounter this:
+# The latest version (since Feb 2026) creates it automatically.
+# You might encounter this if:
+# - You upgraded from an older version
+# - The automatic creation somehow failed
+# - You manually deleted the data directory
+
 cd /home/dietpi/SolarApp/backend
 source .venv/bin/activate
 python3 init_db.py --non-interactive
