@@ -56,27 +56,6 @@ def get_low_stock(session: Session = Depends(get_session)):
     return result
 
 
-@router.get("/{material_id}", response_model=dict)
-def get_stock(material_id: int, session: Session = Depends(get_session)):
-    """Get stock for specific material."""
-    stock = session.exec(
-        select(Stock).where(Stock.material_id == material_id)
-    ).first()
-    
-    if not stock:
-        raise HTTPException(status_code=404, detail="Stock not found")
-    
-    material = session.get(Material, material_id)
-    stock_dict = stock.model_dump()
-    
-    if material:
-        stock_dict["material_name"] = material.name
-        stock_dict["material_sku"] = material.sku
-        stock_dict["min_stock"] = material.min_stock
-    
-    return stock_dict
-
-
 @router.get("/movements/", response_model=List[dict])
 def list_movements(
     skip: int = Query(0, ge=0),
@@ -107,6 +86,27 @@ def list_movements(
         result.append(movement_dict)
     
     return result
+
+
+@router.get("/{material_id}", response_model=dict)
+def get_stock(material_id: int, session: Session = Depends(get_session)):
+    """Get stock for specific material."""
+    stock = session.exec(
+        select(Stock).where(Stock.material_id == material_id)
+    ).first()
+    
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found")
+    
+    material = session.get(Material, material_id)
+    stock_dict = stock.model_dump()
+    
+    if material:
+        stock_dict["material_name"] = material.name
+        stock_dict["material_sku"] = material.sku
+        stock_dict["min_stock"] = material.min_stock
+    
+    return stock_dict
 
 
 @router.post("/movement", response_model=StockMovement)
