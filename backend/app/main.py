@@ -1,6 +1,7 @@
 """FastAPI main application."""
 
 import os
+import logging
 from pathlib import Path
 from fastapi import FastAPI, Depends
 from fastapi.responses import FileResponse
@@ -12,6 +13,9 @@ from sqlmodel import Session, select
 from .database import create_db_and_tables, get_session
 from .models import Material, Stock, Project
 from .api import materials, stock, projects, purchases, invoices
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
@@ -124,7 +128,7 @@ async def serve_frontend(full_path: str):
         # Invalid path or OS error, continue to serve index.html
         # Log the error in development mode
         if os.getenv("ENVIRONMENT") == "development":
-            print(f"Warning: Could not serve file {full_path}: {e}")
+            logger.warning(f"Could not serve file {full_path}: {e}")
         pass
     
     # For all other routes, serve index.html (SPA routing)
