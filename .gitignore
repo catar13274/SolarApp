@@ -24,6 +24,7 @@ MANIFEST
 venv/
 ENV/
 env/
+test_venv/
 *.db
 *.sqlite3
 .env
