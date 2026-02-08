@@ -277,7 +277,7 @@ COSTURI ADIȚIONALE
 │ Manoperă:              3,000.00                │
 │ Transport:               500.00                │
 │ Alte costuri:          1,000.00                │
-│ TOTAL COSTURI ADIȚIONALE: 4,500.00            │
+│ SUBTOTAL COSTURI ADIȚIONALE: 4,500.00         │
 └────────────────────────────────────────────────┘
 
 ESTIMARE COST
