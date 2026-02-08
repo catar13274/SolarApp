@@ -391,6 +391,19 @@ Contributions are welcome! Here's how you can help:
 
 ### Common Issues
 
+**500 Internal Server Error on fresh install:**
+```bash
+# This happens when the backend data directory doesn't exist
+# The fix is automatic in the latest version (since Feb 2026).
+# You might encounter this if you upgraded from an older version
+# or if automatic creation failed. To fix manually:
+cd backend
+source .venv/bin/activate
+python3 init_db.py --non-interactive
+deactivate
+sudo systemctl restart solarapp-backend
+```
+
 **502 Bad Gateway or API connection errors:**
 ```bash
 # This usually happens when the frontend was built with a hardcoded IP
