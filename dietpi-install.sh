@@ -133,6 +133,15 @@ if [ ! -f "backend/.env" ]; then
     sed -i "s|sqlite:///./data/solarapp.db|sqlite:///$INSTALL_DIR/backend/data/solarapp.db|g" backend/.env
 fi
 
+# Initialize database
+echo
+print_info "Initializing database..."
+cd backend
+source .venv/bin/activate || { print_error "Failed to activate backend virtual environment"; exit 1; }
+python3 init_db.py --non-interactive
+deactivate
+cd ..
+
 echo
 print_info "Step 3: Setting up XML Parser service..."
 
