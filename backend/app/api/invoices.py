@@ -86,6 +86,19 @@ async def upload_invoice(
                     )
                 
                 parsed_data = response.json()
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail=f"XML parser service is not available at {XML_PARSER_URL}. Please ensure the service is running."
+        )
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="XML parser service timed out. Please try again later."
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
