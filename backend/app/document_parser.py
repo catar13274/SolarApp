@@ -223,8 +223,21 @@ def parse_line_item(line: str) -> Optional[Dict]:
     - "Product name, 10 buc, 100.00 RON, 1000.00 RON"
     """
     # Skip lines that are likely headers or totals
-    line_lower = line.lower()
-    if any(keyword in line_lower for keyword in ['total', 'subtotal', 'tva', 'tax', 'discount', 'descriere', 'description', 'cantitate', 'quantity']):
+    # Only skip if these keywords appear without other content (likely a header row)
+    line_lower = line.lower().strip()
+    line_words = line_lower.split()
+    
+    # Check if line is primarily a header (contains header keywords and few other words)
+    header_keywords = ['total', 'subtotal', 'tva', 'tax', 'discount']
+    table_header_keywords = ['descriere', 'description', 'cantitate', 'quantity', 'pret', 'price', 'produs', 'product']
+    
+    # Skip if it's a total/subtotal line
+    if any(keyword in line_lower for keyword in header_keywords):
+        return None
+    
+    # Skip if it appears to be a table header (has multiple header keywords and no numbers)
+    header_count = sum(1 for kw in table_header_keywords if kw in line_lower)
+    if header_count >= 2 and len(re.findall(r'\d', line)) < 3:
         return None
     
     # Extract numbers from the line
@@ -278,7 +291,6 @@ def normalize_date(date_str: str) -> str:
     # Try different date formats
     patterns = [
         (r'(\d{1,2})[\./-](\d{1,2})[\./-](\d{4})', lambda m: f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"),
-        (r'(\d{1,2})[\./-](\d{1,2})[\./-](\d{2})', lambda m: f"20{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"),
         (r'(\d{4})-(\d{2})-(\d{2})', lambda m: f"{m.group(1)}-{m.group(2)}-{m.group(3)}"),
     ]
     

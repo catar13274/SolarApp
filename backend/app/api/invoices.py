@@ -287,7 +287,7 @@ async def upload_invoice(
                 invoice_date = date.fromisoformat(invoice_date_str)
             else:
                 invoice_date = date.today()
-        except:
+        except (ValueError, TypeError):
             invoice_date = date.today()
         
         # Check if invoice already exists
