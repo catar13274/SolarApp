@@ -126,9 +126,9 @@ async def serve_frontend(full_path: str):
             return FileResponse(file_path)
     except (ValueError, RuntimeError, OSError) as e:
         # Invalid path or OS error, continue to serve index.html
-        # Log the error in development mode
+        # Log the error in development mode without exposing full paths
         if os.getenv("ENVIRONMENT") == "development":
-            logger.warning(f"Could not serve file {full_path}: {e}")
+            logger.warning(f"Could not serve static file: {type(e).__name__}")
         pass
     
     # For all other routes, serve index.html (SPA routing)
