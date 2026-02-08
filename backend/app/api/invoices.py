@@ -218,7 +218,7 @@ async def upload_invoice(
         
         # Create a basic purchase record
         purchase = Purchase(
-            supplier=f"Unknown (from {file.filename})",
+            supplier="Pending",
             purchase_date=date.today(),
             invoice_number=invoice_number,
             total_amount=0.0,
@@ -234,7 +234,7 @@ async def upload_invoice(
         # Create invoice record
         invoice = Invoice(
             invoice_number=invoice_number,
-            supplier=f"Unknown (from {file.filename})",
+            supplier="Pending",
             invoice_date=date.today(),
             total_amount=0.0,
             currency="RON",
