@@ -337,7 +337,7 @@ SOLARAPP_DB_URL=sqlite:////home/dietpi/SolarApp/backend/data/solarapp.db
 
 # XML Parser
 XML_PARSER_URL=http://localhost:5000
-XML_PARSER_TOKEN=your-secure-token-here
+XML_PARSER_TOKEN=dev-token-12345  # Use default token (change for production)
 
 # CORS (adjust for your network)
 CORS_ORIGINS=http://localhost,http://192.168.1.*
