@@ -207,6 +207,98 @@ await projects.create({
 3. **No Currency Conversion**: All costs assumed to be in RON
 4. **No Cost History**: Cost changes are not tracked historically
 
+## Commercial Offer PDF Enhancement
+
+### Overview
+The commercial offer PDF generation has been enhanced to include additional costs breakdown (labor, transport, and other costs) in the generated PDF documents.
+
+### Changes Made
+
+#### Backend - PDF Service (`backend/app/pdf_service.py`)
+- **Enhanced Materials Section**:
+  - Changed "TOTAL" to "SUBTOTAL MATERIALE" for clarity
+  - Materials subtotal is now displayed separately from total costs
+
+- **New Additional Costs Section**:
+  - Displays labor costs (`labor_cost_estimated`)
+  - Displays transport costs (`transport_cost_estimated`)
+  - Displays other costs (`other_costs_estimated`)
+  - Shows subtotal for all additional costs
+  - Only appears if at least one additional cost is greater than 0
+
+- **Grand Total Calculation**:
+  - When materials and additional costs exist: Grand Total = Materials Subtotal + Additional Costs Subtotal
+  - When only materials exist: Grand Total = Materials Subtotal
+  - Prominent display with blue background and white text
+
+- **No Materials Scenario**:
+  - Shows additional costs breakdown if any exist
+  - Shows estimated cost if provided
+  - Properly handles projects without detailed materials list
+
+### PDF Structure
+
+The enhanced PDF now includes the following structure:
+1. **Header**: Commercial Offer title
+2. **Offer Details**: Date, offer number, validity
+3. **Client Information**: Name, contact, location
+4. **Project Details**: Name, capacity, status, start date
+5. **Materials and Costs**: Detailed materials table with subtotal
+6. **Additional Costs** (new): Labor, transport, and other costs with subtotal
+7. **Grand Total** (enhanced): Combined total of all costs
+8. **Notes**: Project-specific notes
+9. **Terms and Conditions**: Standard terms
+
+### Examples
+
+#### With Materials and Additional Costs
+```
+MATERIALE ȘI COSTURI
+┌────────────────────────────────────────────────┐
+│ Materials Table (with subtotal)                │
+│ SUBTOTAL MATERIALE: 38,000.00                  │
+└────────────────────────────────────────────────┘
+
+COSTURI ADIȚIONALE
+┌────────────────────────────────────────────────┐
+│ Manoperă:              5,000.00                │
+│ Transport:             1,500.00                │
+│ Alte costuri:          2,000.00                │
+│ SUBTOTAL COSTURI ADIȚIONALE: 8,500.00         │
+└────────────────────────────────────────────────┘
+
+TOTAL GENERAL: 46,500.00 RON
+```
+
+#### Without Materials but with Additional Costs
+```
+COSTURI ADIȚIONALE
+┌────────────────────────────────────────────────┐
+│ Manoperă:              3,000.00                │
+│ Transport:               500.00                │
+│ Alte costuri:          1,000.00                │
+│ TOTAL COSTURI ADIȚIONALE: 4,500.00            │
+└────────────────────────────────────────────────┘
+
+ESTIMARE COST
+Cost estimat total: 15,000.00 RON
+```
+
+### Testing
+- ✅ PDF generation with materials and all additional costs
+- ✅ PDF generation with materials and some additional costs
+- ✅ PDF generation with materials but no additional costs
+- ✅ PDF generation without materials but with additional costs
+- ✅ PDF generation without materials and without additional costs
+- ✅ Proper formatting and Romanian diacritics handling
+
+### API Integration
+The enhancement is fully integrated with the existing API:
+- Endpoint: `GET /api/v1/projects/{project_id}/export-pdf`
+- Uses existing project cost fields from the database
+- No API changes required
+- Backward compatible with existing projects
+
 ## Future Enhancements (Not in Scope)
 
 - Automatic total cost calculation from breakdown
@@ -214,7 +306,6 @@ await projects.create({
 - Cost approval workflow
 - Cost change history/audit log
 - Currency support for multi-currency transactions
-- PDF export of cost breakdown
 
 ## Deployment Notes
 
@@ -236,16 +327,19 @@ await projects.create({
 - `backend/app/models.py` - Added PurchaseItemUpdate and Project cost fields
 - `backend/app/api/purchases.py` - Added edit and create-material endpoints
 - `backend/app/api/projects.py` - Updated to handle new cost fields
+- `backend/app/pdf_service.py` - Enhanced PDF generation with additional costs section
 - `frontend/src/services/api.js` - Added API method calls
 - `frontend/src/pages/PurchaseDetailsPage.jsx` - Added edit/create modals
 - `frontend/src/components/Projects/ProjectForm.jsx` - Added cost breakdown section
 - `MANUAL_TESTING_GUIDE.md` - Created comprehensive testing guide
+- `IMPLEMENTATION_SUMMARY.md` - Updated with PDF enhancement documentation
 
 ## Git Commits
 
 1. `Add purchase item editing and material creation + project cost breakdown`
 2. `Fix code review issues: stock initialization and NaN validation`
 3. `Add manual testing guide`
+4. `Add additional costs (labor, transport, other) to commercial offer PDF`
 
 ## Conclusion
 
@@ -254,5 +348,7 @@ All requirements from the issue have been successfully implemented:
 ✅ New materials can be created from purchase items
 ✅ Materials can be added to stock
 ✅ Projects now support detailed cost breakdown (labor, transport, other)
+✅ Commercial offer PDF now includes additional costs breakdown
+✅ Documentation updated with all implementations
 
 The implementation is production-ready, secure, and backward compatible.
