@@ -1,6 +1,7 @@
 """Invoices API endpoints."""
 
 import os
+import logging
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlmodel import Session, select
@@ -11,6 +12,9 @@ from ..database import get_session
 from ..models import Invoice, Purchase
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=List[Invoice])
@@ -52,6 +56,13 @@ async def upload_invoice(
     # Read configuration from environment
     xml_parser_url = os.getenv("XML_PARSER_URL", "http://localhost:5000")
     xml_parser_token = os.getenv("XML_PARSER_TOKEN", "dev-token-12345")
+    
+    # Security warning for default token
+    if xml_parser_token == "dev-token-12345":
+        logger.warning(
+            "Using default XML_PARSER_TOKEN='dev-token-12345'. "
+            "This is insecure for production! Set XML_PARSER_TOKEN environment variable."
+        )
     
     if not file.filename.endswith('.xml'):
         raise HTTPException(status_code=400, detail="Only XML files are allowed")

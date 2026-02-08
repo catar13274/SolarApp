@@ -1,6 +1,7 @@
 """XML Invoice Parser Service for UBL/e-Factura format."""
 
 import os
+import logging
 from flask import Flask, request, jsonify
 from defusedxml import ElementTree as ET
 from werkzeug.utils import secure_filename
@@ -11,6 +12,13 @@ app = Flask(__name__)
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 API_TOKEN = os.getenv('XML_PARSER_TOKEN', 'dev-token-12345')
+
+# Security warning for default token
+if API_TOKEN == 'dev-token-12345':
+    logging.warning(
+        "⚠️  WARNING: Using default XML_PARSER_TOKEN='dev-token-12345'. "
+        "This is insecure for production! Set XML_PARSER_TOKEN environment variable to a secure token."
+    )
 
 # Namespaces for UBL XML invoices
 NAMESPACES = {
