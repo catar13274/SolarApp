@@ -35,6 +35,119 @@ def remove_diacritics(text):
     return text
 
 
+def create_additional_costs_table_data(labor_cost, transport_cost, other_costs, subtotal_label):
+    """
+    Create table data for additional costs section.
+    
+    Args:
+        labor_cost: Labor cost amount
+        transport_cost: Transport cost amount
+        other_costs: Other costs amount
+        subtotal_label: Label for the subtotal row
+    
+    Returns:
+        List of lists containing table data
+    """
+    additional_costs_data = [
+        [remove_diacritics('Tip Cost'), remove_diacritics('Valoare (RON)')]
+    ]
+    
+    if labor_cost > 0:
+        additional_costs_data.append([
+            remove_diacritics('Manoperă'),
+            f"{labor_cost:.2f}"
+        ])
+    
+    if transport_cost > 0:
+        additional_costs_data.append([
+            remove_diacritics('Transport'),
+            f"{transport_cost:.2f}"
+        ])
+    
+    if other_costs > 0:
+        additional_costs_data.append([
+            remove_diacritics('Alte costuri'),
+            f"{other_costs:.2f}"
+        ])
+    
+    # Add subtotal for additional costs
+    subtotal_additional = labor_cost + transport_cost + other_costs
+    additional_costs_data.append([
+        remove_diacritics(subtotal_label),
+        f"{subtotal_additional:.2f}"
+    ])
+    
+    return additional_costs_data
+
+
+def get_additional_costs_table_style():
+    """
+    Get the standard table style for additional costs tables.
+    
+    Returns:
+        TableStyle object
+    """
+    return TableStyle([
+        # Header style
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('TOPPADDING', (0, 0), (-1, 0), 12),
+        
+        # Body style
+        ('FONT', (0, 1), (-1, -2), 'Helvetica', 10),
+        ('ALIGN', (0, 1), (0, -2), 'LEFT'),
+        ('ALIGN', (1, 1), (1, -2), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 1), (-1, -2), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, -2), 8),
+        
+        # Alternating row colors
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f3f4f6')]),
+        
+        # Subtotal row style
+        ('FONT', (0, -1), (-1, -1), 'Helvetica-Bold', 11),
+        ('ALIGN', (0, -1), (-1, -1), 'RIGHT'),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#dbeafe')),
+        ('TOPPADDING', (0, -1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, -1), (-1, -1), 10),
+        
+        # Grid
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ])
+
+
+def create_grand_total_table(total_amount):
+    """
+    Create a grand total table.
+    
+    Args:
+        total_amount: The total amount to display
+    
+    Returns:
+        Table object
+    """
+    grand_total_data = [
+        [remove_diacritics('TOTAL GENERAL:'), f"{total_amount:.2f} RON"]
+    ]
+    
+    grand_total_table = Table(grand_total_data, colWidths=[90*mm, 30*mm])
+    grand_total_table.setStyle(TableStyle([
+        ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 14),
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e40af')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
+        ('TOPPADDING', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#1e40af')),
+    ]))
+    
+    return grand_total_table
+
+
 def generate_commercial_offer_pdf(project_data, materials_list=None):
     """
     Generate a commercial offer PDF for a project.
@@ -230,105 +343,25 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         if labor_cost > 0 or transport_cost > 0 or other_costs > 0:
             elements.append(Paragraph(remove_diacritics("Costuri Adiționale"), heading_style))
             
-            additional_costs_data = [
-                [remove_diacritics('Tip Cost'), remove_diacritics('Valoare (RON)')]
-            ]
-            
-            if labor_cost > 0:
-                additional_costs_data.append([
-                    remove_diacritics('Manoperă'),
-                    f"{labor_cost:.2f}"
-                ])
-            
-            if transport_cost > 0:
-                additional_costs_data.append([
-                    remove_diacritics('Transport'),
-                    f"{transport_cost:.2f}"
-                ])
-            
-            if other_costs > 0:
-                additional_costs_data.append([
-                    remove_diacritics('Alte costuri'),
-                    f"{other_costs:.2f}"
-                ])
-            
-            # Add subtotal for additional costs
-            subtotal_additional = labor_cost + transport_cost + other_costs
-            additional_costs_data.append([
-                remove_diacritics('SUBTOTAL COSTURI ADIȚIONALE:'),
-                f"{subtotal_additional:.2f}"
-            ])
+            # Create additional costs table using helper function
+            additional_costs_data = create_additional_costs_table_data(
+                labor_cost, transport_cost, other_costs, 
+                'SUBTOTAL COSTURI ADIȚIONALE:'
+            )
             
             additional_costs_table = Table(additional_costs_data, colWidths=[90*mm, 30*mm])
-            additional_costs_table.setStyle(TableStyle([
-                # Header style
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('TOPPADDING', (0, 0), (-1, 0), 12),
-                
-                # Body style
-                ('FONT', (0, 1), (-1, -2), 'Helvetica', 10),
-                ('ALIGN', (0, 1), (0, -2), 'LEFT'),
-                ('ALIGN', (1, 1), (1, -2), 'RIGHT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('TOPPADDING', (0, 1), (-1, -2), 8),
-                ('BOTTOMPADDING', (0, 1), (-1, -2), 8),
-                
-                # Alternating row colors
-                ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f3f4f6')]),
-                
-                # Subtotal row style
-                ('FONT', (0, -1), (-1, -1), 'Helvetica-Bold', 11),
-                ('ALIGN', (0, -1), (-1, -1), 'RIGHT'),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#dbeafe')),
-                ('TOPPADDING', (0, -1), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, -1), (-1, -1), 10),
-                
-                # Grid
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ]))
+            additional_costs_table.setStyle(get_additional_costs_table_style())
             elements.append(additional_costs_table)
             elements.append(Spacer(1, 5*mm))
             
             # Add Grand Total
+            subtotal_additional = labor_cost + transport_cost + other_costs
             grand_total = total_cost + subtotal_additional
-            grand_total_data = [
-                [remove_diacritics('TOTAL GENERAL:'), f"{grand_total:.2f} RON"]
-            ]
-            
-            grand_total_table = Table(grand_total_data, colWidths=[90*mm, 30*mm])
-            grand_total_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 14),
-                ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e40af')),
-                ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
-                ('TOPPADDING', (0, 0), (-1, -1), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#1e40af')),
-            ]))
-            elements.append(grand_total_table)
+            elements.append(create_grand_total_table(grand_total))
             elements.append(Spacer(1, 10*mm))
         else:
             # If no additional costs, show total materials as grand total
-            grand_total_data = [
-                [remove_diacritics('TOTAL GENERAL:'), f"{total_cost:.2f} RON"]
-            ]
-            
-            grand_total_table = Table(grand_total_data, colWidths=[90*mm, 30*mm])
-            grand_total_table.setStyle(TableStyle([
-                ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 14),
-                ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e40af')),
-                ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
-                ('TOPPADDING', (0, 0), (-1, -1), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#1e40af')),
-            ]))
-            elements.append(grand_total_table)
+            elements.append(create_grand_total_table(total_cost))
             elements.append(Spacer(1, 10*mm))
     
     # Add pricing section (if no materials provided, show additional costs and estimated cost)
@@ -341,67 +374,14 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         if labor_cost > 0 or transport_cost > 0 or other_costs > 0:
             elements.append(Paragraph(remove_diacritics("Costuri Adiționale"), heading_style))
             
-            additional_costs_data = [
-                [remove_diacritics('Tip Cost'), remove_diacritics('Valoare (RON)')]
-            ]
-            
-            if labor_cost > 0:
-                additional_costs_data.append([
-                    remove_diacritics('Manoperă'),
-                    f"{labor_cost:.2f}"
-                ])
-            
-            if transport_cost > 0:
-                additional_costs_data.append([
-                    remove_diacritics('Transport'),
-                    f"{transport_cost:.2f}"
-                ])
-            
-            if other_costs > 0:
-                additional_costs_data.append([
-                    remove_diacritics('Alte costuri'),
-                    f"{other_costs:.2f}"
-                ])
-            
-            # Add subtotal for additional costs
-            subtotal_additional = labor_cost + transport_cost + other_costs
-            additional_costs_data.append([
-                remove_diacritics('TOTAL COSTURI ADIȚIONALE:'),
-                f"{subtotal_additional:.2f}"
-            ])
+            # Create additional costs table using helper function (use consistent label)
+            additional_costs_data = create_additional_costs_table_data(
+                labor_cost, transport_cost, other_costs, 
+                'SUBTOTAL COSTURI ADIȚIONALE:'
+            )
             
             additional_costs_table = Table(additional_costs_data, colWidths=[90*mm, 30*mm])
-            additional_costs_table.setStyle(TableStyle([
-                # Header style
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-                ('TOPPADDING', (0, 0), (-1, 0), 12),
-                
-                # Body style
-                ('FONT', (0, 1), (-1, -2), 'Helvetica', 10),
-                ('ALIGN', (0, 1), (0, -2), 'LEFT'),
-                ('ALIGN', (1, 1), (1, -2), 'RIGHT'),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('TOPPADDING', (0, 1), (-1, -2), 8),
-                ('BOTTOMPADDING', (0, 1), (-1, -2), 8),
-                
-                # Alternating row colors
-                ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f3f4f6')]),
-                
-                # Subtotal row style
-                ('FONT', (0, -1), (-1, -1), 'Helvetica-Bold', 11),
-                ('ALIGN', (0, -1), (-1, -1), 'RIGHT'),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#dbeafe')),
-                ('TOPPADDING', (0, -1), (-1, -1), 10),
-                ('BOTTOMPADDING', (0, -1), (-1, -1), 10),
-                
-                # Grid
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-            ]))
+            additional_costs_table.setStyle(get_additional_costs_table_style())
             elements.append(additional_costs_table)
             elements.append(Spacer(1, 10*mm))
         
