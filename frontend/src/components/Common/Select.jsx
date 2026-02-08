@@ -1,11 +1,13 @@
-const Select = ({ 
+import { forwardRef } from 'react'
+
+const Select = forwardRef(({ 
   label, 
   error, 
   options = [],
   className = '',
   required = false,
   ...props 
-}) => {
+}, ref) => {
   return (
     <div className={className}>
       {label && (
@@ -15,6 +17,7 @@ const Select = ({
         </label>
       )}
       <select
+        ref={ref}
         className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
           error ? 'border-red-500' : 'border-gray-300'
         }`}
@@ -31,6 +34,8 @@ const Select = ({
       )}
     </div>
   )
-}
+})
+
+Select.displayName = 'Select'
 
 export default Select

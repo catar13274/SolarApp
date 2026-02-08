@@ -17,6 +17,7 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
   })
   
   const { register, handleSubmit, formState: { errors } } = useForm({
+    mode: 'onChange',
     defaultValues: {
       project_id: '',
       quantity: 0,
