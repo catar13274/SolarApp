@@ -111,6 +111,7 @@ class Invoice(SQLModel, table=True):
     total_amount: float
     currency: str = "RON"
     xml_file_path: Optional[str] = None
+    file_format: Optional[str] = None  # File extension: xml, pdf, doc, xls, txt
     purchase_id: Optional[int] = Field(foreign_key="purchase.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

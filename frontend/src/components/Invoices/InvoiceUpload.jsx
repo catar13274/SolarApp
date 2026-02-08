@@ -33,11 +33,14 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
-      if (file.name.endsWith('.xml')) {
+      const fileExtension = file.name.split('.').pop().toLowerCase()
+      const allowedExtensions = ['xml', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt']
+      
+      if (allowedExtensions.includes(fileExtension)) {
         setSelectedFile(file)
         setUploadResult(null)
       } else {
-        toast.error('Only XML files are allowed')
+        toast.error('Only XML, PDF, DOC, XLS, and TXT files are allowed')
       }
     }
   }, [])
@@ -47,6 +50,12 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
     accept: {
       'text/xml': ['.xml'],
       'application/xml': ['.xml'],
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'text/plain': ['.txt'],
     },
     maxFiles: 1,
     multiple: false,
@@ -83,18 +92,18 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
             <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             {isDragActive ? (
               <p className="text-lg text-primary-600 font-medium">
-                Drop the XML file here...
+                Drop the invoice file here...
               </p>
             ) : (
               <div>
                 <p className="text-lg text-gray-700 font-medium mb-2">
-                  Drag & drop an XML invoice here
+                  Drag & drop an invoice here
                 </p>
                 <p className="text-sm text-gray-500">
                   or click to select a file
                 </p>
                 <p className="text-xs text-gray-400 mt-2">
-                  Supports e-Factura (UBL) XML format
+                  Supports XML (e-Factura), PDF, DOC, XLS, and TXT formats
                 </p>
               </div>
             )}
@@ -135,7 +144,7 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
                     Processing invoice...
                   </p>
                   <p className="text-sm text-blue-700">
-                    Parsing XML and creating purchase record
+                    Parsing invoice and creating purchase record
                   </p>
                 </div>
               </div>
