@@ -10,6 +10,7 @@ import httpx
 
 from ..database import get_session
 from ..models import Invoice, Purchase, PurchaseItem
+from ..document_parser import parse_document
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
@@ -45,6 +46,45 @@ def get_invoice(invoice_id: int, session: Session = Depends(get_session)):
             invoice_dict["purchase"] = purchase.model_dump()
     
     return invoice_dict
+
+
+@router.delete("/{invoice_id}")
+def delete_invoice(invoice_id: int, session: Session = Depends(get_session)):
+    """Delete an invoice and its associated purchase record."""
+    invoice = session.get(Invoice, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # Delete associated file if it exists
+    if invoice.xml_file_path and os.path.exists(invoice.xml_file_path):
+        try:
+            os.remove(invoice.xml_file_path)
+            logger.info(f"Deleted invoice file: {invoice.xml_file_path}")
+        except Exception as e:
+            logger.warning(f"Failed to delete invoice file: {e}")
+    
+    # Delete associated purchase and its items if they exist
+    if invoice.purchase_id:
+        purchase = session.get(Purchase, invoice.purchase_id)
+        if purchase:
+            # Delete all purchase items first
+            items_query = select(PurchaseItem).where(PurchaseItem.purchase_id == purchase.id)
+            items = session.exec(items_query).all()
+            for item in items:
+                session.delete(item)
+            
+            # Delete the purchase
+            session.delete(purchase)
+            logger.info(f"Deleted purchase #{purchase.id} with {len(items)} items")
+    
+    # Delete the invoice
+    session.delete(invoice)
+    session.commit()
+    
+    return {
+        "message": "Invoice deleted successfully",
+        "invoice_id": invoice_id
+    }
 
 
 @router.post("/upload")
@@ -217,9 +257,38 @@ async def upload_invoice(
             "parsed_data": parsed_data
         }
     else:
-        # For non-XML files, create a basic invoice record without parsing
-        # Use filename as invoice number (without extension)
-        invoice_number = file.filename.rsplit('.', 1)[0]
+        # For non-XML files, parse using document parser
+        try:
+            parsed_data = parse_document(file_path, file_extension)
+        except Exception as e:
+            logger.error(f"Error parsing {file_extension} document: {e}")
+            # If parsing fails, create a basic record
+            parsed_data = {
+                'invoice_number': '',
+                'invoice_date': '',
+                'supplier_name': '',
+                'currency': 'RON',
+                'total_amount': 0.0,
+                'items': []
+            }
+        
+        # Use filename as fallback for invoice number
+        invoice_number = parsed_data.get('invoice_number') or file.filename.rsplit('.', 1)[0]
+        
+        # Get other fields with fallbacks
+        supplier = parsed_data.get('supplier_name') or 'Pending'
+        invoice_date_str = parsed_data.get('invoice_date')
+        total_amount = float(parsed_data.get('total_amount', 0))
+        currency = parsed_data.get('currency', 'RON')
+        
+        # Parse date
+        try:
+            if invoice_date_str:
+                invoice_date = date.fromisoformat(invoice_date_str)
+            else:
+                invoice_date = date.today()
+        except:
+            invoice_date = date.today()
         
         # Check if invoice already exists
         existing = session.exec(
@@ -229,17 +298,17 @@ async def upload_invoice(
         if existing:
             raise HTTPException(
                 status_code=400,
-                detail="Invoice with this filename already uploaded"
+                detail="Invoice with this number already uploaded"
             )
         
-        # Create a basic purchase record
+        # Create purchase record
         purchase = Purchase(
-            supplier="Pending",
-            purchase_date=date.today(),
+            supplier=supplier,
+            purchase_date=invoice_date,
             invoice_number=invoice_number,
-            total_amount=0.0,
-            currency="RON",
-            notes=f"Created from uploaded invoice {file.filename}. Please update purchase details manually.",
+            total_amount=total_amount,
+            currency=currency,
+            notes=f"Created from uploaded invoice {file.filename} ({file_extension.upper()} format)",
             created_at=datetime.utcnow()
         )
         
@@ -247,13 +316,29 @@ async def upload_invoice(
         session.commit()
         session.refresh(purchase)
         
+        # Create purchase items from parsed data
+        items_data = parsed_data.get('items', [])
+        for item_data in items_data:
+            purchase_item = PurchaseItem(
+                purchase_id=purchase.id,
+                material_id=None,  # Will be matched manually later
+                description=item_data.get('description', ''),
+                sku=item_data.get('sku', ''),
+                quantity=item_data.get('quantity', 0.0),
+                unit_price=item_data.get('unit_price', 0.0),
+                total_price=item_data.get('total_price', 0.0)
+            )
+            session.add(purchase_item)
+        
+        session.commit()
+        
         # Create invoice record
         invoice = Invoice(
             invoice_number=invoice_number,
-            supplier="Pending",
-            invoice_date=date.today(),
-            total_amount=0.0,
-            currency="RON",
+            supplier=supplier,
+            invoice_date=invoice_date,
+            total_amount=total_amount,
+            currency=currency,
             xml_file_path=file_path,
             file_format=file_extension,
             purchase_id=purchase.id,
@@ -264,9 +349,16 @@ async def upload_invoice(
         session.commit()
         session.refresh(invoice)
         
+        # Determine message based on whether items were found
+        if items_data:
+            message = f"Invoice file ({file_extension.upper()}) uploaded and processed successfully. Found {len(items_data)} items."
+        else:
+            message = f"Invoice file ({file_extension.upper()}) uploaded. No items could be extracted automatically. Please update purchase details manually."
+        
         return {
-            "message": f"Invoice file ({file_extension.upper()}) uploaded successfully. Please update purchase details manually.",
+            "message": message,
             "invoice": invoice.model_dump(),
             "purchase_id": purchase.id,
-            "requires_manual_update": True
+            "parsed_data": parsed_data,
+            "items_found": len(items_data)
         }

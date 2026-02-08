@@ -80,6 +80,7 @@ export const invoices = {
       'Content-Type': 'multipart/form-data',
     },
   }),
+  delete: (id) => api.delete(`/api/v1/invoices/${id}`),
 }
 
 // Dashboard API
