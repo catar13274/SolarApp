@@ -605,7 +605,29 @@ chmod +x /home/dietpi/SolarApp/dietpi-install.sh
 
 ## Updating SolarApp
 
-To update SolarApp to the latest version:
+### Automated Update (Recommended)
+
+For quick and safe updates, use the automated update script:
+
+```bash
+cd /home/dietpi/SolarApp
+
+# Run the automated update script
+sudo ./dietpi-update.sh
+```
+
+The `dietpi-update.sh` script will:
+- Stop services before updating
+- Create automatic database backup
+- Pull latest changes from git
+- Update backend and XML parser dependencies
+- Rebuild frontend (if Node.js available)
+- Run database migrations (if any)
+- Restart all services
+
+### Manual Update
+
+To update SolarApp manually:
 
 ```bash
 cd /home/dietpi/SolarApp
@@ -646,7 +668,30 @@ sudo systemctl start solarapp-backend-rpi solarapp-xml-parser-rpi
 
 ## Uninstalling
 
-To completely remove SolarApp:
+### Automated Uninstallation (Recommended)
+
+For safe and complete removal, use the automated uninstall script:
+
+```bash
+cd /home/dietpi/SolarApp
+
+# Run the automated uninstall script
+sudo ./dietpi-uninstall.sh
+```
+
+The `dietpi-uninstall.sh` script will:
+- Stop and disable all SolarApp services
+- Remove systemd service files
+- Remove nginx configuration
+- Optionally create a database backup
+- Remove application files (with confirmation)
+- Provide guidance on removing system packages
+
+The script will ask for confirmation before removing components and offers options to keep backups.
+
+### Manual Uninstallation
+
+To completely remove SolarApp manually:
 
 ```bash
 # Stop and disable services
