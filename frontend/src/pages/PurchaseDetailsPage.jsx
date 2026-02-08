@@ -136,7 +136,7 @@ const PurchaseDetailsPage = () => {
     if (selectedItem) {
       setCreateMaterialForm({
         name: selectedItem.description,
-        sku: selectedItem.sku || '',
+        sku: selectedItem.sku ?? '',
         description: selectedItem.description,
         category: 'panel',
         unit: 'buc',
@@ -441,7 +441,7 @@ const PurchaseDetailsPage = () => {
               step="0.01"
               value={editFormData.quantity || 0}
               onChange={(e) => {
-                const quantity = parseFloat(e.target.value)
+                const quantity = parseFloat(e.target.value) || 0
                 const unitPrice = editFormData.unit_price || 0
                 setEditFormData({ 
                   ...editFormData, 
@@ -458,7 +458,7 @@ const PurchaseDetailsPage = () => {
               step="0.01"
               value={editFormData.unit_price || 0}
               onChange={(e) => {
-                const unitPrice = parseFloat(e.target.value)
+                const unitPrice = parseFloat(e.target.value) || 0
                 const quantity = editFormData.quantity || 0
                 setEditFormData({ 
                   ...editFormData, 
@@ -575,7 +575,7 @@ const PurchaseDetailsPage = () => {
               type="number"
               step="0.01"
               value={createMaterialForm.unit_price}
-              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, unit_price: parseFloat(e.target.value) })}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, unit_price: parseFloat(e.target.value) || 0 })}
               required
             />
             
@@ -583,7 +583,7 @@ const PurchaseDetailsPage = () => {
               label="Minimum Stock"
               type="number"
               value={createMaterialForm.min_stock}
-              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, min_stock: parseInt(e.target.value) })}
+              onChange={(e) => setCreateMaterialForm({ ...createMaterialForm, min_stock: parseInt(e.target.value) || 0 })}
               required
             />
           </div>

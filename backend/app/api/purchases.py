@@ -127,10 +127,10 @@ def create_material_from_purchase_item(
     session.commit()
     session.refresh(material)
     
-    # Create initial stock entry
+    # Create initial stock entry with the purchase item quantity
     stock = Stock(
         material_id=material.id,
-        quantity=0.0,
+        quantity=purchase_item.quantity,
         location="Main Warehouse",
         updated_at=datetime.utcnow()
     )
