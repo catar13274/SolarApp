@@ -4,13 +4,38 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlmodel import Session, select
-from datetime import datetime
+from datetime import datetime, date
 
 from ..database import get_session
 from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
 from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
+
+
+def parse_date_string(date_str: Optional[str], field_name: str) -> Optional[date]:
+    """Parse ISO date string to date object.
+    
+    Args:
+        date_str: ISO 8601 date string (YYYY-MM-DD) or None
+        field_name: Name of the field for error messages
+        
+    Returns:
+        date object or None
+        
+    Raises:
+        HTTPException: If date format is invalid
+    """
+    if not date_str:
+        return None
+    
+    try:
+        return datetime.fromisoformat(date_str).date()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid date format for {field_name}. Expected ISO 8601 format (YYYY-MM-DD), got: {date_str}"
+        )
 
 
 @router.get("/", response_model=List[Project])
@@ -83,6 +108,8 @@ def create_project(project_data: ProjectUpdate, session: Session = Depends(get_s
         location=project_data.location,
         capacity_kw=project_data.capacity_kw,
         status=project_data.status,
+        start_date=parse_date_string(project_data.start_date, "start_date"),
+        end_date=parse_date_string(project_data.end_date, "end_date"),
         estimated_cost=project_data.estimated_cost,
         actual_cost=project_data.actual_cost,
         labor_cost_estimated=project_data.labor_cost_estimated,
@@ -95,19 +122,6 @@ def create_project(project_data: ProjectUpdate, session: Session = Depends(get_s
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    
-    # Handle date conversion from string to date object
-    if project_data.start_date:
-        try:
-            project.start_date = datetime.fromisoformat(project_data.start_date).date()
-        except (ValueError, AttributeError):
-            project.start_date = None
-    
-    if project_data.end_date:
-        try:
-            project.end_date = datetime.fromisoformat(project_data.end_date).date()
-        except (ValueError, AttributeError):
-            project.end_date = None
     
     session.add(project)
     session.commit()
@@ -134,24 +148,8 @@ def update_project(
     project.location = project_update.location
     project.capacity_kw = project_update.capacity_kw
     project.status = project_update.status
-    
-    # Handle date conversion from string to date object
-    if project_update.start_date:
-        try:
-            project.start_date = datetime.fromisoformat(project_update.start_date).date()
-        except (ValueError, AttributeError):
-            project.start_date = None
-    else:
-        project.start_date = None
-    
-    if project_update.end_date:
-        try:
-            project.end_date = datetime.fromisoformat(project_update.end_date).date()
-        except (ValueError, AttributeError):
-            project.end_date = None
-    else:
-        project.end_date = None
-    
+    project.start_date = parse_date_string(project_update.start_date, "start_date")
+    project.end_date = parse_date_string(project_update.end_date, "end_date")
     project.estimated_cost = project_update.estimated_cost
     project.actual_cost = project_update.actual_cost
     project.labor_cost_estimated = project_update.labor_cost_estimated
