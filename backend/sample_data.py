@@ -177,6 +177,8 @@ def create_sample_data():
             
             if existing_material:
                 print(f"  - Material '{material.sku}' already exists, skipping...")
+                # Refresh to ensure we have the latest data from the database
+                session.refresh(existing_material)
                 added_materials.append(existing_material)
             else:
                 session.add(material)
