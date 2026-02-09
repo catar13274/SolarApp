@@ -38,6 +38,7 @@ class StockMovement(SQLModel, table=True):
     material_id: int = Field(foreign_key="material.id")
     movement_type: str  # "in", "out", "adjustment", "transfer"
     quantity: float
+    unit_price: Optional[float] = None  # Acquisition price per unit (for "in" movements)
     reference_type: Optional[str] = None  # "purchase", "project", "manual"
     reference_id: Optional[int] = None
     notes: Optional[str] = None

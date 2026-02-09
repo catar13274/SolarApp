@@ -68,6 +68,7 @@ def add_purchase_item_to_stock(
         material_id=request.material_id,
         movement_type="in",
         quantity=purchase_item.quantity,
+        unit_price=purchase_item.unit_price,  # Track acquisition price
         reference_type="purchase",
         reference_id=purchase_id,
         notes=f"Added from purchase {purchase.invoice_number or purchase_id}",
@@ -145,6 +146,7 @@ def create_material_from_purchase_item(
         material_id=material.id,
         movement_type="in",
         quantity=purchase_item.quantity,
+        unit_price=purchase_item.unit_price,  # Track acquisition price
         reference_type="purchase",
         reference_id=purchase_id,
         notes=f"Created material from purchase {purchase.invoice_number or purchase_id}",
@@ -279,6 +281,7 @@ def create_purchase(
                 material_id=item.material_id,
                 movement_type="in",
                 quantity=item.quantity,
+                unit_price=item.unit_price,  # Track acquisition price
                 reference_type="purchase",
                 reference_id=purchase.id,
                 notes=f"Purchase from {purchase.supplier}",
