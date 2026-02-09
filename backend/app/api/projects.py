@@ -73,10 +73,41 @@ def get_project(project_id: int, session: Session = Depends(get_session)):
 
 
 @router.post("/", response_model=Project)
-def create_project(project: Project, session: Session = Depends(get_session)):
+def create_project(project_data: ProjectUpdate, session: Session = Depends(get_session)):
     """Create a new project."""
-    project.created_at = datetime.utcnow()
-    project.updated_at = datetime.utcnow()
+    # Create project with date conversion
+    project = Project(
+        name=project_data.name,
+        client_name=project_data.client_name,
+        client_contact=project_data.client_contact,
+        location=project_data.location,
+        capacity_kw=project_data.capacity_kw,
+        status=project_data.status,
+        estimated_cost=project_data.estimated_cost,
+        actual_cost=project_data.actual_cost,
+        labor_cost_estimated=project_data.labor_cost_estimated,
+        labor_cost_actual=project_data.labor_cost_actual,
+        transport_cost_estimated=project_data.transport_cost_estimated,
+        transport_cost_actual=project_data.transport_cost_actual,
+        other_costs_estimated=project_data.other_costs_estimated,
+        other_costs_actual=project_data.other_costs_actual,
+        notes=project_data.notes,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    
+    # Handle date conversion from string to date object
+    if project_data.start_date:
+        try:
+            project.start_date = datetime.fromisoformat(project_data.start_date).date()
+        except (ValueError, AttributeError):
+            project.start_date = None
+    
+    if project_data.end_date:
+        try:
+            project.end_date = datetime.fromisoformat(project_data.end_date).date()
+        except (ValueError, AttributeError):
+            project.end_date = None
     
     session.add(project)
     session.commit()
