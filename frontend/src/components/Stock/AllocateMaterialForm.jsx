@@ -36,7 +36,7 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
   })
   
   // Calculate project price
-  const projectPrice = acquisitionPrice * (parseFloat(commercialMarkup) || 1)
+  const projectPrice = acquisitionPrice * (isNaN(parseFloat(commercialMarkup)) ? 1 : parseFloat(commercialMarkup))
 
   // Fetch both planned and in_progress projects
   const { data: allProjects } = useQuery({
@@ -138,7 +138,7 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
           </div>
           <div>
             <p className="text-xs text-green-700 font-medium">Commercial Markup</p>
-            <p className="text-sm text-green-900 font-semibold">{commercialMarkup}x</p>
+            <p className="text-sm text-green-900 font-semibold">{parseFloat(commercialMarkup).toFixed(2)}x</p>
           </div>
           <div>
             <p className="text-xs text-green-700 font-medium">Project Price</p>

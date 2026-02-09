@@ -37,7 +37,7 @@ def list_stock(
                 select(StockMovement)
                 .where(StockMovement.material_id == stock.material_id)
                 .where(StockMovement.movement_type == "in")
-                .where(StockMovement.unit_price != None)
+                .where(StockMovement.unit_price is not None)
                 .order_by(StockMovement.created_at.desc())
             ).first()
             
@@ -69,7 +69,7 @@ def get_low_stock(session: Session = Depends(get_session)):
                 select(StockMovement)
                 .where(StockMovement.material_id == stock.material_id)
                 .where(StockMovement.movement_type == "in")
-                .where(StockMovement.unit_price != None)
+                .where(StockMovement.unit_price is not None)
                 .order_by(StockMovement.created_at.desc())
             ).first()
             
