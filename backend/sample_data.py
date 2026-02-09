@@ -169,6 +169,7 @@ def create_sample_data():
         
         # Add materials only if they don't already exist (check by SKU)
         added_materials = []
+        new_materials = []
         for material in materials:
             # Check if material with this SKU already exists
             existing_material = session.exec(
@@ -183,9 +184,14 @@ def create_sample_data():
             else:
                 session.add(material)
                 added_materials.append(material)
+                new_materials.append(material)
                 print(f"  - Adding material '{material.sku}'...")
         
         session.commit()
+        
+        # Refresh newly added materials to get their IDs
+        for material in new_materials:
+            session.refresh(material)
         
         # Use added_materials list for subsequent operations
         materials = added_materials
@@ -193,7 +199,6 @@ def create_sample_data():
         # Create initial stock for materials
         print("Creating initial stock...")
         for material in materials:
-            session.refresh(material)
             
             # Check if stock already exists for this material
             existing_stock = session.exec(
