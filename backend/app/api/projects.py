@@ -4,13 +4,38 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlmodel import Session, select
-from datetime import datetime
+from datetime import datetime, date
 
 from ..database import get_session
-from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed
+from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
 from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
+
+
+def parse_date_string(date_str: Optional[str], field_name: str) -> Optional[date]:
+    """Parse ISO date string to date object.
+    
+    Args:
+        date_str: ISO 8601 date string (YYYY-MM-DD) or None
+        field_name: Name of the field for error messages
+        
+    Returns:
+        date object or None
+        
+    Raises:
+        HTTPException: If date format is invalid
+    """
+    if not date_str:
+        return None
+    
+    try:
+        return datetime.fromisoformat(date_str).date()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid date format for {field_name}. Expected ISO 8601 format (YYYY-MM-DD), got: {date_str}"
+        )
 
 
 @router.get("/", response_model=List[Project])
@@ -73,10 +98,30 @@ def get_project(project_id: int, session: Session = Depends(get_session)):
 
 
 @router.post("/", response_model=Project)
-def create_project(project: Project, session: Session = Depends(get_session)):
+def create_project(project_data: ProjectUpdate, session: Session = Depends(get_session)):
     """Create a new project."""
-    project.created_at = datetime.utcnow()
-    project.updated_at = datetime.utcnow()
+    # Create project with date conversion
+    project = Project(
+        name=project_data.name,
+        client_name=project_data.client_name,
+        client_contact=project_data.client_contact,
+        location=project_data.location,
+        capacity_kw=project_data.capacity_kw,
+        status=project_data.status,
+        start_date=parse_date_string(project_data.start_date, "start_date"),
+        end_date=parse_date_string(project_data.end_date, "end_date"),
+        estimated_cost=project_data.estimated_cost,
+        actual_cost=project_data.actual_cost,
+        labor_cost_estimated=project_data.labor_cost_estimated,
+        labor_cost_actual=project_data.labor_cost_actual,
+        transport_cost_estimated=project_data.transport_cost_estimated,
+        transport_cost_actual=project_data.transport_cost_actual,
+        other_costs_estimated=project_data.other_costs_estimated,
+        other_costs_actual=project_data.other_costs_actual,
+        notes=project_data.notes,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
     
     session.add(project)
     session.commit()
@@ -88,7 +133,7 @@ def create_project(project: Project, session: Session = Depends(get_session)):
 @router.put("/{project_id}", response_model=Project)
 def update_project(
     project_id: int,
-    project_update: Project,
+    project_update: ProjectUpdate,
     session: Session = Depends(get_session)
 ):
     """Update an existing project."""
@@ -103,8 +148,8 @@ def update_project(
     project.location = project_update.location
     project.capacity_kw = project_update.capacity_kw
     project.status = project_update.status
-    project.start_date = project_update.start_date
-    project.end_date = project_update.end_date
+    project.start_date = parse_date_string(project_update.start_date, "start_date")
+    project.end_date = parse_date_string(project_update.end_date, "end_date")
     project.estimated_cost = project_update.estimated_cost
     project.actual_cost = project_update.actual_cost
     project.labor_cost_estimated = project_update.labor_cost_estimated
