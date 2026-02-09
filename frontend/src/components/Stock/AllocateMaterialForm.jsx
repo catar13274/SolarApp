@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { projects, stock, materials } from '../../services/api'
@@ -16,13 +16,27 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
     enabled: !!stockItem?.material_id,
   })
   
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  // Get acquisition price from stockItem (now includes acquisition_price from backend)
+  const acquisitionPrice = stockItem?.acquisition_price || materialData?.unit_price || 0
+  
+  const { register, handleSubmit, control, formState: { errors } } = useForm({
     mode: 'onChange',
     defaultValues: {
       project_id: '',
       quantity: 0,
+      commercial_markup: 1.2, // Default 20% markup
     }
   })
+  
+  // Watch commercial_markup to calculate project price
+  const commercialMarkup = useWatch({
+    control,
+    name: 'commercial_markup',
+    defaultValue: 1.2
+  })
+  
+  // Calculate project price
+  const projectPrice = acquisitionPrice * (isNaN(parseFloat(commercialMarkup)) ? 1 : parseFloat(commercialMarkup))
 
   // Fetch both planned and in_progress projects
   const { data: allProjects } = useQuery({
@@ -38,12 +52,15 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
 
   const allocateMutation = useMutation({
     mutationFn: async (data) => {
+      // Calculate final unit price for project
+      const finalUnitPrice = acquisitionPrice * parseFloat(data.commercial_markup)
+      
       // First, add material to project
       await projects.addMaterial(data.project_id, {
         material_id: stockItem.material_id,
         quantity_planned: data.quantity,
         quantity_used: 0,
-        unit_price: data.unit_price,
+        unit_price: finalUnitPrice,
         project_id: data.project_id
       })
       
@@ -87,10 +104,16 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
       return
     }
     
+    const markup = parseFloat(data.commercial_markup)
+    if (isNaN(markup) || markup <= 0) {
+      toast.error('Please enter a valid commercial markup')
+      return
+    }
+    
     allocateMutation.mutate({
       project_id: projectId,
       quantity: quantity,
-      unit_price: parseFloat(data.unit_price) || (materialData?.unit_price || 0)
+      commercial_markup: markup
     })
   }
 
@@ -104,11 +127,24 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
         <p className="text-sm text-blue-700 mt-1">
           Available: <span className="font-semibold">{stockItem?.quantity}</span> units
         </p>
-        {materialData && (
-          <p className="text-sm text-blue-700 mt-1">
-            Unit Price: <span className="font-semibold">{materialData.unit_price} RON</span>
-          </p>
-        )}
+      </div>
+      
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+        <h4 className="font-semibold text-green-900">Pricing Information</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+          <div>
+            <p className="text-xs text-green-700 font-medium">Acquisition Price</p>
+            <p className="text-sm text-green-900 font-semibold">{acquisitionPrice.toFixed(2)} RON</p>
+          </div>
+          <div>
+            <p className="text-xs text-green-700 font-medium">Commercial Markup</p>
+            <p className="text-sm text-green-900 font-semibold">{parseFloat(commercialMarkup).toFixed(2)}x</p>
+          </div>
+          <div>
+            <p className="text-xs text-green-700 font-medium">Project Price</p>
+            <p className="text-sm text-green-900 font-semibold">{projectPrice.toFixed(2)} RON</p>
+          </div>
+        </div>
       </div>
 
       <Select
@@ -142,16 +178,17 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
       />
 
       <Input
-        label="Unit Price (RON)"
+        label="Commercial Markup (multiplier)"
         type="number"
         step="0.01"
         required
-        defaultValue={materialData?.unit_price || 0}
-        {...register('unit_price', { 
-          required: 'Unit price is required',
-          min: { value: 0, message: 'Price must be 0 or greater' }
+        defaultValue={1.2}
+        {...register('commercial_markup', { 
+          required: 'Commercial markup is required',
+          min: { value: 0.01, message: 'Markup must be greater than 0' }
         })}
-        error={errors.unit_price?.message}
+        error={errors.commercial_markup?.message}
+        helperText="E.g., 1.2 for 20% markup, 1.5 for 50% markup"
       />
 
       <div className="flex justify-end gap-3 mt-6">

@@ -31,6 +31,18 @@ def list_stock(
             stock_dict["material_category"] = material.category
             stock_dict["min_stock"] = material.min_stock
             stock_dict["is_low"] = stock.quantity < material.min_stock
+            
+            # Get the latest acquisition price from stock movements
+            latest_movement = session.exec(
+                select(StockMovement)
+                .where(StockMovement.material_id == stock.material_id)
+                .where(StockMovement.movement_type == "in")
+                .where(StockMovement.unit_price is not None)
+                .order_by(StockMovement.created_at.desc())
+            ).first()
+            
+            stock_dict["acquisition_price"] = latest_movement.unit_price if latest_movement else material.unit_price
+            
             result.append(stock_dict)
     
     return result
@@ -51,6 +63,18 @@ def get_low_stock(session: Session = Depends(get_session)):
             stock_dict["material_category"] = material.category
             stock_dict["min_stock"] = material.min_stock
             stock_dict["shortage"] = material.min_stock - stock.quantity
+            
+            # Get the latest acquisition price from stock movements
+            latest_movement = session.exec(
+                select(StockMovement)
+                .where(StockMovement.material_id == stock.material_id)
+                .where(StockMovement.movement_type == "in")
+                .where(StockMovement.unit_price is not None)
+                .order_by(StockMovement.created_at.desc())
+            ).first()
+            
+            stock_dict["acquisition_price"] = latest_movement.unit_price if latest_movement else material.unit_price
+            
             result.append(stock_dict)
     
     return result
