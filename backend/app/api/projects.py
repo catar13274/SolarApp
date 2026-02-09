@@ -319,6 +319,9 @@ def export_project_pdf(project_id: int, session: Session = Depends(get_session))
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
+    # Refresh project to ensure we have the latest data from database
+    session.refresh(project)
+    
     # Get project materials
     project_materials = session.exec(
         select(ProjectMaterial).where(ProjectMaterial.project_id == project_id)
