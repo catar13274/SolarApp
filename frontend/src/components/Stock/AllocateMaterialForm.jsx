@@ -55,6 +55,10 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
       // Calculate final unit price for project
       const finalUnitPrice = acquisitionPrice * parseFloat(data.commercial_markup)
       
+      // Find the project name
+      const project = allProjects?.find(p => p.id === Number(data.project_id))
+      const projectName = project ? project.name : 'Unknown Project'
+      
       // First, add material to project
       await projects.addMaterial(data.project_id, {
         material_id: stockItem.material_id,
@@ -71,7 +75,7 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
         quantity: data.quantity,
         reference_type: 'project',
         reference_id: data.project_id,
-        notes: `Allocated to project`
+        notes: `Allocated to project: ${projectName}`
       })
     },
     onSuccess: () => {
