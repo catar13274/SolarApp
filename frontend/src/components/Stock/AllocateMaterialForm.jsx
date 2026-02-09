@@ -56,7 +56,7 @@ const AllocateMaterialForm = ({ stockItem, onSuccess, onCancel }) => {
       const finalUnitPrice = acquisitionPrice * parseFloat(data.commercial_markup)
       
       // Find the project name
-      const project = allProjects?.find(p => p.id === data.project_id)
+      const project = allProjects?.find(p => p.id === Number(data.project_id))
       const projectName = project ? project.name : 'Unknown Project'
       
       // First, add material to project
