@@ -3,7 +3,7 @@
 import os
 from datetime import date, datetime
 from dotenv import load_dotenv
-from sqlmodel import Session, create_engine, SQLModel
+from sqlmodel import Session, create_engine, SQLModel, select
 from app.models import Material, Stock, Project, ProjectMaterial, Purchase, PurchaseItem
 
 # Load environment variables
@@ -167,25 +167,50 @@ def create_sample_data():
             ),
         ]
         
+        # Add materials only if they don't already exist (check by SKU)
+        added_materials = []
         for material in materials:
-            session.add(material)
+            # Check if material with this SKU already exists
+            existing_material = session.exec(
+                select(Material).where(Material.sku == material.sku)
+            ).first()
+            
+            if existing_material:
+                print(f"  - Material '{material.sku}' already exists, skipping...")
+                added_materials.append(existing_material)
+            else:
+                session.add(material)
+                added_materials.append(material)
+                print(f"  - Adding material '{material.sku}'...")
         
         session.commit()
+        
+        # Use added_materials list for subsequent operations
+        materials = added_materials
         
         # Create initial stock for materials
         print("Creating initial stock...")
         for material in materials:
             session.refresh(material)
             
-            # Set some initial stock quantities
-            initial_qty = material.min_stock * 1.5 if material.category in ["panel", "inverter", "battery"] else material.min_stock * 2
+            # Check if stock already exists for this material
+            existing_stock = session.exec(
+                select(Stock).where(Stock.material_id == material.id)
+            ).first()
             
-            stock = Stock(
-                material_id=material.id,
-                quantity=initial_qty,
-                location="Main Warehouse"
-            )
-            session.add(stock)
+            if existing_stock:
+                print(f"  - Stock for material '{material.sku}' already exists, skipping...")
+            else:
+                # Set some initial stock quantities
+                initial_qty = material.min_stock * 1.5 if material.category in ["panel", "inverter", "battery"] else material.min_stock * 2
+                
+                stock = Stock(
+                    material_id=material.id,
+                    quantity=initial_qty,
+                    location="Main Warehouse"
+                )
+                session.add(stock)
+                print(f"  - Adding stock for material '{material.sku}'...")
         
         session.commit()
         
@@ -241,8 +266,17 @@ def create_sample_data():
             ),
         ]
         
+        # Add projects only if they don't already exist (check by name)
         for project in projects:
-            session.add(project)
+            existing_project = session.exec(
+                select(Project).where(Project.name == project.name)
+            ).first()
+            
+            if existing_project:
+                print(f"  - Project '{project.name}' already exists, skipping...")
+            else:
+                session.add(project)
+                print(f"  - Adding project '{project.name}'...")
         
         session.commit()
         
