@@ -278,7 +278,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         materials_data = [
             [remove_diacritics('Nr.'), remove_diacritics('Material'), 
              remove_diacritics('SKU'), remove_diacritics('Cantitate'), 
-             remove_diacritics('Preț Unitar (RON)'), remove_diacritics('Total (RON)')]
+             remove_diacritics('Preț Unitar cu Adaos (RON)'), remove_diacritics('Total (RON)')]
         ]
         
         total_cost = 0
@@ -296,7 +296,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
             ])
         
         # Add subtotal row for materials
-        materials_data.append(['', '', '', '', remove_diacritics('SUBTOTAL MATERIALE:'), f"{total_cost:.2f}"])
+        materials_data.append(['', '', '', '', remove_diacritics('SUBTOTAL MATERIALE (cu adaos):'), f"{total_cost:.2f}"])
         
         materials_table = Table(materials_data, colWidths=[10*mm, 60*mm, 30*mm, 20*mm, 30*mm, 30*mm])
         materials_table.setStyle(TableStyle([
