@@ -166,3 +166,24 @@ class MaterialUsed(BaseModel):
     """Model for materials used in a project."""
     material_id: int
     quantity: float
+
+
+class ProjectUpdate(BaseModel):
+    """Model for updating projects with proper date handling."""
+    name: str
+    client_name: str
+    client_contact: Optional[str] = None
+    location: Optional[str] = None
+    capacity_kw: Optional[float] = None
+    status: str
+    start_date: Optional[str] = None  # Accept string, will be converted to date
+    end_date: Optional[str] = None    # Accept string, will be converted to date
+    estimated_cost: Optional[float] = None
+    actual_cost: Optional[float] = None
+    labor_cost_estimated: Optional[float] = None
+    labor_cost_actual: Optional[float] = None
+    transport_cost_estimated: Optional[float] = None
+    transport_cost_actual: Optional[float] = None
+    other_costs_estimated: Optional[float] = None
+    other_costs_actual: Optional[float] = None
+    notes: Optional[str] = None

@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from datetime import datetime
 
 from ..database import get_session
-from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed
+from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
 from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -88,7 +88,7 @@ def create_project(project: Project, session: Session = Depends(get_session)):
 @router.put("/{project_id}", response_model=Project)
 def update_project(
     project_id: int,
-    project_update: Project,
+    project_update: ProjectUpdate,
     session: Session = Depends(get_session)
 ):
     """Update an existing project."""
@@ -103,8 +103,24 @@ def update_project(
     project.location = project_update.location
     project.capacity_kw = project_update.capacity_kw
     project.status = project_update.status
-    project.start_date = project_update.start_date
-    project.end_date = project_update.end_date
+    
+    # Handle date conversion from string to date object
+    if project_update.start_date:
+        try:
+            project.start_date = datetime.fromisoformat(project_update.start_date).date()
+        except (ValueError, AttributeError):
+            project.start_date = None
+    else:
+        project.start_date = None
+    
+    if project_update.end_date:
+        try:
+            project.end_date = datetime.fromisoformat(project_update.end_date).date()
+        except (ValueError, AttributeError):
+            project.end_date = None
+    else:
+        project.end_date = None
+    
     project.estimated_cost = project_update.estimated_cost
     project.actual_cost = project_update.actual_cost
     project.labor_cost_estimated = project_update.labor_cost_estimated
