@@ -3,6 +3,7 @@ import { forwardRef } from 'react'
 const Input = forwardRef(({ 
   label, 
   error, 
+  helperText,
   className = '',
   required = false,
   ...props 
@@ -24,6 +25,9 @@ const Input = forwardRef(({
       />
       {error && (
         <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+      {!error && helperText && (
+        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
       )}
     </div>
   )
