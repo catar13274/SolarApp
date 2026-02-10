@@ -370,11 +370,19 @@ const PurchaseDetailsPage = () => {
                 required
               >
                 <option value="">-- Select a material --</option>
-                {materialsData?.map((material) => (
-                  <option key={material.id} value={material.id}>
-                    {material.name} ({material.sku})
-                  </option>
-                ))}
+                {materialsData
+                  ?.filter((material) => {
+                    // Filter out materials already linked to items in this purchase
+                    const isAlreadyLinked = purchase?.items?.some(
+                      (item) => item.material_id === material.id
+                    )
+                    return !isAlreadyLinked
+                  })
+                  .map((material) => (
+                    <option key={material.id} value={material.id}>
+                      {material.name} ({material.sku})
+                    </option>
+                  ))}
               </Select>
             </div>
 
