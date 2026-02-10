@@ -41,6 +41,12 @@ else
     print_warning "Continuing installation on standard Raspberry Pi OS..."
 fi
 
+# Configuration variables
+BACKEND_PORT=${BACKEND_PORT:-8000}
+BACKEND_HOST=${BACKEND_HOST:-127.0.0.1}
+XML_PARSER_PORT=${XML_PARSER_PORT:-5000}
+NGINX_PORT=${NGINX_PORT:-80}
+
 # Detect installation directory
 INSTALL_DIR=$(cd "$(dirname "$0")" && pwd)
 print_info "Installation directory: $INSTALL_DIR"
@@ -56,6 +62,22 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Validate user exists
+if ! id "$CURRENT_USER" &>/dev/null; then
+    print_error "User $CURRENT_USER does not exist"
+    exit 1
+fi
+
+# Warn if running as root user for services
+if [ "$CURRENT_USER" = "root" ]; then
+    print_warning "Running services as root is not recommended for security"
+    read -t 30 -p "Continue anyway? (y/N): " continue_root || continue_root="n"
+    if [[ ! $continue_root =~ ^[Yy]$ ]]; then
+        print_info "Installation cancelled."
+        exit 0
+    fi
+fi
+
 echo
 print_info "=========================================="
 print_info "SolarApp Diet Pi Installation"
@@ -64,6 +86,45 @@ echo
 
 # Step 1: Check prerequisites
 print_info "Step 1: Checking prerequisites..."
+
+# Check disk space (minimum 500MB)
+AVAILABLE_SPACE=$(df "$INSTALL_DIR" | tail -1 | awk '{print $4}')
+if [ "$AVAILABLE_SPACE" -lt 500000 ]; then
+    print_error "Insufficient disk space. At least 500MB required, only $(($AVAILABLE_SPACE / 1024))MB available"
+    exit 1
+fi
+print_info "Disk space: $(($AVAILABLE_SPACE / 1024))MB available"
+
+# Check if ports are available
+if command -v ss &> /dev/null; then
+    if ss -tlnp 2>/dev/null | grep -q ":$BACKEND_PORT "; then
+        print_error "Port $BACKEND_PORT already in use. Backend cannot start."
+        ss -tlnp 2>/dev/null | grep ":$BACKEND_PORT "
+        exit 1
+    fi
+    if ss -tlnp 2>/dev/null | grep -q ":$XML_PARSER_PORT "; then
+        print_error "Port $XML_PARSER_PORT already in use. XML parser cannot start."
+        ss -tlnp 2>/dev/null | grep ":$XML_PARSER_PORT "
+        exit 1
+    fi
+    if ss -tlnp 2>/dev/null | grep -q ":$NGINX_PORT "; then
+        print_warning "Port $NGINX_PORT already in use. This may be expected if nginx is already installed."
+    fi
+elif command -v netstat &> /dev/null; then
+    if netstat -tlnp 2>/dev/null | grep -q ":$BACKEND_PORT "; then
+        print_error "Port $BACKEND_PORT already in use. Backend cannot start."
+        netstat -tlnp 2>/dev/null | grep ":$BACKEND_PORT "
+        exit 1
+    fi
+    if netstat -tlnp 2>/dev/null | grep -q ":$XML_PARSER_PORT "; then
+        print_error "Port $XML_PARSER_PORT already in use. XML parser cannot start."
+        netstat -tlnp 2>/dev/null | grep ":$XML_PARSER_PORT "
+        exit 1
+    fi
+    if netstat -tlnp 2>/dev/null | grep -q ":$NGINX_PORT "; then
+        print_warning "Port $NGINX_PORT already in use. This may be expected if nginx is already installed."
+    fi
+fi
 
 # Check Python
 if ! command -v python3 &> /dev/null; then
@@ -78,6 +139,14 @@ fi
 
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 print_info "Python $PYTHON_VERSION installed"
+
+# Validate Python version (minimum 3.8)
+PYTHON_MAJOR=$(python3 -c 'import sys; print(sys.version_info[0])')
+PYTHON_MINOR=$(python3 -c 'import sys; print(sys.version_info[1])')
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 8 ]); then
+    print_error "Python 3.8 or higher is required. Found $PYTHON_VERSION"
+    exit 1
+fi
 
 # Check nginx
 if ! command -v nginx &> /dev/null; then
@@ -127,6 +196,10 @@ cd ..
 
 # Setup .env file
 if [ ! -f "backend/.env" ]; then
+    if [ ! -f "backend/.env.example" ]; then
+        print_error "backend/.env.example not found. Cannot create .env file."
+        exit 1
+    fi
     print_info "Creating .env file from template..."
     cp backend/.env.example backend/.env
     # Update database path for absolute path
@@ -206,7 +279,7 @@ print_info "Creating nginx configuration at $NGINX_SITE_CONF..."
 cat > "$NGINX_SITE_CONF" <<EOF
 # SolarApp Frontend - Optimized for Diet Pi / Raspberry Pi
 server {
-    listen 80;
+    listen $NGINX_PORT;
     server_name _;
     
     root $INSTALL_DIR/frontend/dist;
@@ -230,7 +303,7 @@ server {
     
     # Proxy API requests to backend
     location /api {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://$BACKEND_HOST:$BACKEND_PORT;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -248,21 +321,21 @@ server {
     
     # API documentation endpoints
     location /docs {
-        proxy_pass http://127.0.0.1:8000/docs;
+        proxy_pass http://$BACKEND_HOST:$BACKEND_PORT/docs;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
     }
     
     location /redoc {
-        proxy_pass http://127.0.0.1:8000/redoc;
+        proxy_pass http://$BACKEND_HOST:$BACKEND_PORT/redoc;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
     }
     
     location /openapi.json {
-        proxy_pass http://127.0.0.1:8000/openapi.json;
+        proxy_pass http://$BACKEND_HOST:$BACKEND_PORT/openapi.json;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
     }
@@ -320,7 +393,7 @@ User=$CURRENT_USER
 WorkingDirectory=$INSTALL_DIR/backend
 Environment="PATH=$INSTALL_DIR/backend/.venv/bin"
 # Optimized for Raspberry Pi with single worker
-ExecStart=$INSTALL_DIR/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
+ExecStart=$INSTALL_DIR/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
 Restart=always
 RestartSec=5
 

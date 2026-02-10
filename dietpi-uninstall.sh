@@ -43,6 +43,12 @@ fi
 INSTALL_DIR=$(cd "$(dirname "$0")" && pwd)
 print_info "Installation directory: $INSTALL_DIR"
 
+# Detect current user (for ownership operations if needed)
+CURRENT_USER=${SUDO_USER:-$(whoami)}
+if [ "$CURRENT_USER" = "root" ] && [ -n "$SUDO_USER" ]; then
+    CURRENT_USER=$SUDO_USER
+fi
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     print_error "This script must be run with sudo"
@@ -164,7 +170,7 @@ print_info "Step 4: Backing up database..."
 # Ask if user wants to keep database backup
 read -p "Do you want to create a backup of the database before removal? (y/N): " backup_db
 if [[ $backup_db =~ ^[Yy]$ ]]; then
-    BACKUP_DIR="$HOME/solarapp-backups"
+    BACKUP_DIR="$INSTALL_DIR/backups"
     mkdir -p "$BACKUP_DIR"
     DATE=$(date +%Y%m%d_%H%M%S)
     
