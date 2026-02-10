@@ -3,7 +3,7 @@
 from datetime import datetime
 from io import BytesIO
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -33,6 +33,29 @@ def remove_diacritics(text):
         text = text.replace(diacritic, replacement)
     
     return text
+
+
+def wrap_text(text, style_name='Normal', font_size=9):
+    """
+    Wrap text in a Paragraph for automatic text wrapping in table cells.
+    
+    Args:
+        text: Text to wrap
+        style_name: Style name to use
+        font_size: Font size for the paragraph
+    
+    Returns:
+        Paragraph object with wrapped text
+    """
+    styles = getSampleStyleSheet()
+    style = ParagraphStyle(
+        name='CellText',
+        parent=styles[style_name],
+        fontSize=font_size,
+        leading=font_size * 1.2,
+        alignment=TA_LEFT
+    )
+    return Paragraph(str(text), style)
 
 
 def create_additional_costs_table_data(labor_cost, transport_cost, other_costs, subtotal_label):
@@ -132,7 +155,7 @@ def create_grand_total_table(total_amount):
         [remove_diacritics('TOTAL GENERAL:'), f"{total_amount:.2f} RON"]
     ]
     
-    grand_total_table = Table(grand_total_data, colWidths=[90*mm, 30*mm])
+    grand_total_table = Table(grand_total_data, colWidths=[110*mm, 40*mm])
     grand_total_table.setStyle(TableStyle([
         ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 14),
         ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
@@ -159,10 +182,10 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     """
     buffer = BytesIO()
     
-    # Create the PDF document
+    # Create the PDF document in landscape format
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=A4,
+        pagesize=landscape(A4),
         rightMargin=20*mm,
         leftMargin=20*mm,
         topMargin=20*mm,
@@ -210,7 +233,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         [remove_diacritics('Valabilitate:'), remove_diacritics('30 zile')],
     ]
     
-    offer_table = Table(offer_details, colWidths=[60*mm, 80*mm])
+    offer_table = Table(offer_details, colWidths=[70*mm, 100*mm])
     offer_table.setStyle(TableStyle([
         ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
         ('FONT', (0, 0), (0, -1), 'Helvetica-Bold', 10),
@@ -232,7 +255,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         [remove_diacritics('Locație:'), remove_diacritics(project_data.get('location', 'N/A'))],
     ]
     
-    client_table = Table(client_info, colWidths=[60*mm, 80*mm])
+    client_table = Table(client_info, colWidths=[70*mm, 100*mm])
     client_table.setStyle(TableStyle([
         ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
         ('FONT', (0, 0), (0, -1), 'Helvetica-Bold', 10),
@@ -257,7 +280,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     if project_data.get('start_date'):
         project_info.append([remove_diacritics('Data start estimată:'), str(project_data.get('start_date'))])
     
-    project_table = Table(project_info, colWidths=[60*mm, 80*mm])
+    project_table = Table(project_info, colWidths=[70*mm, 100*mm])
     project_table.setStyle(TableStyle([
         ('FONT', (0, 0), (-1, -1), 'Helvetica', 10),
         ('FONT', (0, 0), (0, -1), 'Helvetica-Bold', 10),
@@ -274,11 +297,16 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     if materials_list and len(materials_list) > 0:
         elements.append(Paragraph(remove_diacritics("Materiale și Costuri"), heading_style))
         
-        # Materials table header
+        # Materials table header with wrapped text
         materials_data = [
-            [remove_diacritics('Nr.'), remove_diacritics('Material'), 
-             remove_diacritics('SKU'), remove_diacritics('Cantitate'), 
-             remove_diacritics('Preț Unitar cu Adaos (RON)'), remove_diacritics('Total (RON)')]
+            [
+                wrap_text(remove_diacritics('Nr.'), font_size=10),
+                wrap_text(remove_diacritics('Material'), font_size=10),
+                wrap_text(remove_diacritics('SKU'), font_size=10),
+                wrap_text(remove_diacritics('Cantitate'), font_size=10),
+                wrap_text(remove_diacritics('Preț Unitar cu Adaos (RON)'), font_size=10),
+                wrap_text(remove_diacritics('Total (RON)'), font_size=10)
+            ]
         ]
         
         total_cost = 0
@@ -288,8 +316,8 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
             
             materials_data.append([
                 str(idx),
-                remove_diacritics(material.get('material_name', 'N/A')),
-                remove_diacritics(material.get('material_sku', 'N/A')),
+                wrap_text(remove_diacritics(material.get('material_name', 'N/A')), font_size=9),
+                wrap_text(remove_diacritics(material.get('material_sku', 'N/A')), font_size=9),
                 f"{material.get('quantity_planned', 0):.2f}",
                 f"{material.get('unit_price', 0):.2f}",
                 f"{material_total:.2f}"
@@ -298,7 +326,8 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         # Add subtotal row for materials
         materials_data.append(['', '', '', '', remove_diacritics('SUBTOTAL MATERIALE (cu adaos):'), f"{total_cost:.2f}"])
         
-        materials_table = Table(materials_data, colWidths=[10*mm, 60*mm, 30*mm, 20*mm, 30*mm, 30*mm])
+        # Adjusted column widths for landscape format (total width 240mm for landscape A4)
+        materials_table = Table(materials_data, colWidths=[15*mm, 80*mm, 40*mm, 25*mm, 45*mm, 35*mm])
         materials_table.setStyle(TableStyle([
             # Header style
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
@@ -308,14 +337,15 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
             
             # Body style
             ('FONT', (0, 1), (-1, -2), 'Helvetica', 9),
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),
             ('ALIGN', (3, 1), (-1, -2), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 1), (-1, -2), 6),
-            ('BOTTOMPADDING', (0, 1), (-1, -2), 6),
+            ('TOPPADDING', (0, 1), (-1, -2), 8),
+            ('BOTTOMPADDING', (0, 1), (-1, -2), 8),
             
             # Alternating row colors
             ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f3f4f6')]),
@@ -346,7 +376,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
             'SUBTOTAL COSTURI ADIȚIONALE:'
         )
         
-        additional_costs_table = Table(additional_costs_data, colWidths=[90*mm, 30*mm])
+        additional_costs_table = Table(additional_costs_data, colWidths=[110*mm, 40*mm])
         additional_costs_table.setStyle(get_additional_costs_table_style())
         elements.append(additional_costs_table)
         elements.append(Spacer(1, 5*mm))
@@ -373,7 +403,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
                 'SUBTOTAL COSTURI ADIȚIONALE:'
             )
             
-            additional_costs_table = Table(additional_costs_data, colWidths=[90*mm, 30*mm])
+            additional_costs_table = Table(additional_costs_data, colWidths=[110*mm, 40*mm])
             additional_costs_table.setStyle(get_additional_costs_table_style())
             elements.append(additional_costs_table)
             elements.append(Spacer(1, 10*mm))
@@ -384,7 +414,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
             cost_data = [
                 [remove_diacritics('Cost estimat total:'), f"{project_data.get('estimated_cost', 0):.2f} RON"]
             ]
-            cost_table = Table(cost_data, colWidths=[60*mm, 80*mm])
+            cost_table = Table(cost_data, colWidths=[70*mm, 100*mm])
             cost_table.setStyle(TableStyle([
                 ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 12),
                 ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
