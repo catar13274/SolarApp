@@ -9,6 +9,7 @@ from datetime import datetime, date
 from ..database import get_session
 from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
 from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
+from ..word_service import generate_commercial_offer_word
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -361,3 +362,54 @@ def export_project_pdf(project_id: int, session: Session = Depends(get_session))
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
+
+
+@router.get("/{project_id}/export-word")
+def export_project_word(project_id: int, session: Session = Depends(get_session)):
+    """Export project as a commercial offer Word document."""
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Refresh project to ensure we have the latest data from database
+    session.refresh(project)
+    
+    # Get project materials
+    project_materials = session.exec(
+        select(ProjectMaterial).where(ProjectMaterial.project_id == project_id)
+    ).all()
+    
+    materials_list = []
+    for pm in project_materials:
+        material = session.get(Material, pm.material_id)
+        if material:
+            materials_list.append({
+                "material_id": material.id,
+                "material_name": material.name,
+                "material_sku": material.sku,
+                "quantity_planned": pm.quantity_planned,
+                "quantity_used": pm.quantity_used,
+                "unit_price": pm.unit_price,
+                "total_cost": pm.quantity_planned * pm.unit_price
+            })
+    
+    # Prepare project data for Word document
+    project_data = project.model_dump()
+    
+    # Generate Word document
+    try:
+        word_bytes = generate_commercial_offer_word(project_data, materials_list)
+        
+        # Create filename
+        filename = f"Oferta_Comerciala_{remove_diacritics(project.name.replace(' ', '_'))}_{datetime.now().strftime('%Y%m%d')}.docx"
+        
+        # Return Word document as response
+        return Response(
+            content=word_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate Word document: {str(e)}")
