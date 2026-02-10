@@ -326,7 +326,7 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
         # Add subtotal row for materials
         materials_data.append(['', '', '', '', remove_diacritics('SUBTOTAL MATERIALE (cu adaos):'), f"{total_cost:.2f}"])
         
-        # Adjusted column widths for landscape format (total width ~250mm for landscape A4)
+        # Adjusted column widths for landscape format (total width 240mm for landscape A4)
         materials_table = Table(materials_data, colWidths=[15*mm, 80*mm, 40*mm, 25*mm, 45*mm, 35*mm])
         materials_table.setStyle(TableStyle([
             # Header style
