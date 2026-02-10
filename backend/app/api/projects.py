@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlmodel import Session, select
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from ..database import get_session
 from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
@@ -401,7 +401,7 @@ def export_project_word(project_id: int, session: Session = Depends(get_session)
         word_bytes = generate_commercial_offer_word(project_data, materials_list)
         
         # Create filename
-        filename = f"Oferta_Comerciala_{remove_diacritics(project.name.replace(' ', '_'))}_{datetime.now().strftime('%Y%m%d')}.docx"
+        filename = f"Oferta_Comerciala_{remove_diacritics(project.name.replace(' ', '_'))}_{datetime.now(timezone.utc).strftime('%Y%m%d')}.docx"
         
         # Return Word document as response
         return Response(

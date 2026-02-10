@@ -1,12 +1,16 @@
 """Word document generation service for commercial offers."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+
+
+# Constants
+OFFER_VALIDITY_DAYS = 30
 
 
 def remove_diacritics(text):
@@ -231,11 +235,11 @@ def generate_commercial_offer_word(project_data, materials_list=None):
     # Offer Details Section
     add_heading_with_style(doc, 'Detalii Oferta', level=2)
     
-    offer_date = datetime.now().strftime("%d.%m.%Y")
+    offer_date = datetime.now(timezone.utc).strftime("%d.%m.%Y")
     offer_details = [
         ('Data ofertei:', offer_date),
-        ('Nr. oferta:', f"OF-{project_data.get('id', 'N/A')}-{datetime.now().strftime('%Y%m%d')}"),
-        ('Valabilitate:', '30 zile')
+        ('Nr. oferta:', f"OF-{project_data.get('id', 'N/A')}-{datetime.now(timezone.utc).strftime('%Y%m%d')}"),
+        ('Valabilitate:', f'{OFFER_VALIDITY_DAYS} zile')
     ]
     
     add_two_column_table(doc, offer_details)
@@ -325,7 +329,7 @@ def generate_commercial_offer_word(project_data, materials_list=None):
     
     terms = [
         "• Preturile sunt exprimate in RON si nu includ TVA.",
-        "• Oferta este valabila 30 de zile de la data emiterii.",
+        f"• Oferta este valabila {OFFER_VALIDITY_DAYS} de zile de la data emiterii.",
         "• Timpul de livrare va fi confirmat la plasarea comenzii.",
         "• Montajul si punerea in functiune sunt incluse in pret.",
         "• Garantie conform specificatiilor producatorilor."
