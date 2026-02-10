@@ -10,7 +10,7 @@ import LoadingSpinner from '../components/Common/LoadingSpinner'
 import Modal from '../components/Common/Modal'
 import Select from '../components/Common/Select'
 import Input from '../components/Common/Input'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 const PurchaseDetailsPage = () => {
   const { id } = useParams()
@@ -71,6 +71,13 @@ const PurchaseDetailsPage = () => {
       toast.error(error.response?.data?.detail || 'Failed to update item')
     },
   })
+
+  // Memoize the Set of linked material IDs for efficient filtering
+  const linkedMaterialIds = useMemo(() => {
+    return new Set(
+      purchase?.items?.map(item => item.material_id).filter(Boolean) ?? []
+    )
+  }, [purchase?.items])
 
   const createMaterialMutation = useMutation({
     mutationFn: ({ itemId, data }) => 
@@ -370,11 +377,13 @@ const PurchaseDetailsPage = () => {
                 required
               >
                 <option value="">-- Select a material --</option>
-                {materialsData?.map((material) => (
-                  <option key={material.id} value={material.id}>
-                    {material.name} ({material.sku})
-                  </option>
-                ))}
+                {materialsData
+                  ?.filter((material) => !linkedMaterialIds.has(material.id))
+                  .map((material) => (
+                    <option key={material.id} value={material.id}>
+                      {material.name} ({material.sku})
+                    </option>
+                  ))}
               </Select>
             </div>
 
