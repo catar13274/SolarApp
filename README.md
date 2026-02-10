@@ -221,11 +221,26 @@ sudo ./dietpi-install.sh
 ```
 
 The Diet Pi installer will:
+- ✅ Validate system requirements (disk space, ports, Python 3.8+)
 - ✅ Install all prerequisites (Python, nginx, etc.)
 - ✅ Set up backend and XML parser services
 - ✅ Build and configure frontend with nginx
 - ✅ Create optimized systemd services
 - ✅ Configure nginx as reverse proxy
+
+#### Custom Port Configuration
+
+You can customize ports if the defaults are already in use:
+
+```bash
+# Set custom ports
+export BACKEND_PORT=8080      # Default: 8000
+export XML_PARSER_PORT=5001   # Default: 5000  
+export NGINX_PORT=8080        # Default: 80
+
+# Run installer preserving environment variables
+sudo -E ./dietpi-install.sh
+```
 
 **📗 For complete Diet Pi guide, see [DIETPI.md](DIETPI.md)**
 
