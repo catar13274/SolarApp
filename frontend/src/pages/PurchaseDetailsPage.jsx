@@ -370,19 +370,20 @@ const PurchaseDetailsPage = () => {
                 required
               >
                 <option value="">-- Select a material --</option>
-                {materialsData
-                  ?.filter((material) => {
-                    // Filter out materials already linked to items in this purchase
-                    const isAlreadyLinked = purchase?.items?.some(
-                      (item) => item.material_id === material.id
-                    )
-                    return !isAlreadyLinked
-                  })
-                  .map((material) => (
-                    <option key={material.id} value={material.id}>
-                      {material.name} ({material.sku})
-                    </option>
-                  ))}
+                {(() => {
+                  // Create a Set of material IDs already linked to items in this purchase
+                  const linkedMaterialIds = new Set(
+                    purchase?.items?.map(item => item.material_id).filter(Boolean) ?? []
+                  )
+                  
+                  return materialsData
+                    ?.filter((material) => !linkedMaterialIds.has(material.id))
+                    .map((material) => (
+                      <option key={material.id} value={material.id}>
+                        {material.name} ({material.sku})
+                      </option>
+                    ))
+                })()}
               </Select>
             </div>
 
