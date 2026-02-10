@@ -203,6 +203,22 @@ def add_grand_total_table(doc, total_amount):
     return table
 
 
+def extract_additional_costs(project_data):
+    """
+    Extract additional costs from project data.
+    
+    Args:
+        project_data: Dictionary containing project information
+    
+    Returns:
+        tuple: (labor_cost, transport_cost, other_costs)
+    """
+    labor_cost = project_data.get('labor_cost_estimated', 0) or 0
+    transport_cost = project_data.get('transport_cost_estimated', 0) or 0
+    other_costs = project_data.get('other_costs_estimated', 0) or 0
+    return labor_cost, transport_cost, other_costs
+
+
 def generate_commercial_offer_word(project_data, materials_list=None):
     """
     Generate a commercial offer Word document for a project.
@@ -235,10 +251,11 @@ def generate_commercial_offer_word(project_data, materials_list=None):
     # Offer Details Section
     add_heading_with_style(doc, 'Detalii Oferta', level=2)
     
-    offer_date = datetime.now(timezone.utc).strftime("%d.%m.%Y")
+    now = datetime.now(timezone.utc)
+    offer_date = now.strftime("%d.%m.%Y")
     offer_details = [
         ('Data ofertei:', offer_date),
-        ('Nr. oferta:', f"OF-{project_data.get('id', 'N/A')}-{datetime.now(timezone.utc).strftime('%Y%m%d')}"),
+        ('Nr. oferta:', f"OF-{project_data.get('id', 'N/A')}-{now.strftime('%Y%m%d')}"),
         ('Valabilitate:', f'{OFFER_VALIDITY_DAYS} zile')
     ]
     
@@ -280,9 +297,7 @@ def generate_commercial_offer_word(project_data, materials_list=None):
         doc.add_paragraph()  # Spacer
         
         # Additional Costs Section
-        labor_cost = project_data.get('labor_cost_estimated', 0) or 0
-        transport_cost = project_data.get('transport_cost_estimated', 0) or 0
-        other_costs = project_data.get('other_costs_estimated', 0) or 0
+        labor_cost, transport_cost, other_costs = extract_additional_costs(project_data)
         
         add_heading_with_style(doc, 'Costuri Aditionale', level=2)
         
@@ -298,9 +313,7 @@ def generate_commercial_offer_word(project_data, materials_list=None):
     
     # Pricing section (if no materials provided)
     if not materials_list or len(materials_list) == 0:
-        labor_cost = project_data.get('labor_cost_estimated', 0) or 0
-        transport_cost = project_data.get('transport_cost_estimated', 0) or 0
-        other_costs = project_data.get('other_costs_estimated', 0) or 0
+        labor_cost, transport_cost, other_costs = extract_additional_costs(project_data)
         
         # Show additional costs if any exist
         if labor_cost > 0 or transport_cost > 0 or other_costs > 0:

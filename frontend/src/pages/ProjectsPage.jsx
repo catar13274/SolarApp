@@ -52,6 +52,18 @@ const ProjectsPage = () => {
     setEditingProject(null)
   }
 
+  const getFilenameFromResponse = (response, defaultFilename) => {
+    // Try to extract filename from Content-Disposition header
+    const contentDisposition = response.headers['content-disposition']
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i)
+      if (filenameMatch && filenameMatch[1]) {
+        return filenameMatch[1]
+      }
+    }
+    return defaultFilename
+  }
+
   const handleExportPDF = async (project) => {
     try {
       toast.loading('Generating PDF...')
@@ -64,7 +76,7 @@ const ProjectsPage = () => {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `Oferta_Comerciala_${project.name.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`
+      link.download = getFilenameFromResponse(response, `Oferta_Comerciala_${project.name.replace(/ /g, '_')}.pdf`)
       
       // Trigger download
       document.body.appendChild(link)
@@ -95,7 +107,7 @@ const ProjectsPage = () => {
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `Oferta_Comerciala_${project.name.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.docx`
+      link.download = getFilenameFromResponse(response, `Oferta_Comerciala_${project.name.replace(/ /g, '_')}.docx`)
       
       // Trigger download
       document.body.appendChild(link)
