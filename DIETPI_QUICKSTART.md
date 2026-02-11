@@ -31,11 +31,26 @@ sudo ./dietpi-install.sh
 ```
 
 That's it! The installer handles everything:
-- Installs Python, nginx, and dependencies
+- Validates system requirements (disk space, ports, Python version)
+- Installs Python 3.8+, nginx, and dependencies
 - Builds the frontend
 - Configures nginx as reverse proxy
 - Sets up systemd services
 - Starts all services
+
+### Optional: Custom Port Configuration
+
+If you need to use different ports (e.g., port 8000 already in use):
+
+```bash
+# Set custom ports before installation
+export BACKEND_PORT=8080      # Default: 8000
+export XML_PARSER_PORT=5001   # Default: 5000
+export NGINX_PORT=8080        # Default: 80
+
+# Run installer with environment variables preserved
+sudo -E ./dietpi-install.sh
+```
 
 ## What Gets Installed
 

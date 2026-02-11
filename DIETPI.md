@@ -510,16 +510,32 @@ sudo ./dietpi-install.sh
 ```
 
 The `dietpi-install.sh` script will:
-- Install prerequisites (Python, nginx, Git)
+- Validate system requirements (disk space, ports, Python version)
+- Install prerequisites (Python 3.8+, nginx, Git)
 - Set up backend and XML parser with virtual environments
 - Build the frontend (if Node.js available)
 - Configure nginx with reverse proxy
 - Create and start systemd services
 - Validate the installation
 
+### Configuration Options
+
+You can customize the installation by setting environment variables before running the script:
+
+```bash
+# Custom port configuration
+export BACKEND_PORT=8000      # Backend API port (default: 8000)
+export BACKEND_HOST=127.0.0.1 # Backend host (default: 127.0.0.1)
+export XML_PARSER_PORT=5000   # XML parser port (default: 5000)
+export NGINX_PORT=80          # Nginx frontend port (default: 80)
+
+# Then run the installer
+sudo -E ./dietpi-install.sh  # -E preserves environment variables
+```
+
 Access your application at `http://YOUR_PI_IP/` after installation completes.
 
-**Note**: This is the recommended installation method for Diet Pi as it handles all configuration automatically.
+**Note**: This is the recommended installation method for Diet Pi as it handles all configuration automatically and includes comprehensive validation.
 
 ---
 

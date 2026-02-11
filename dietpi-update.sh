@@ -5,6 +5,10 @@
 
 set -e  # Exit on error
 
+# Configuration variables
+BACKEND_PORT=${BACKEND_PORT:-8000}
+BACKUP_DIR_NAME="backups"
+
 # Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -45,7 +49,13 @@ print_info "Installation directory: $INSTALL_DIR"
 
 # Detect current user
 CURRENT_USER=${SUDO_USER:-$(whoami)}
-print_info "Running as user: $CURRENT_USER"
+print_info "Running update for user: $CURRENT_USER"
+
+# Validate user exists
+if ! id "$CURRENT_USER" &>/dev/null; then
+    print_error "User $CURRENT_USER does not exist"
+    exit 1
+fi
 
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
@@ -117,7 +127,7 @@ fi
 echo
 print_info "Step 2: Backing up database..."
 
-BACKUP_DIR="$INSTALL_DIR/backups"
+BACKUP_DIR="$INSTALL_DIR/$BACKUP_DIR_NAME"
 mkdir -p "$BACKUP_DIR"
 DATE=$(date +%Y%m%d_%H%M%S)
 
@@ -203,7 +213,7 @@ if [ ! -d ".venv" ]; then
 fi
 
 print_info "Activating virtual environment..."
-source .venv/bin/activate
+source .venv/bin/activate || { print_error "Failed to activate backend virtual environment"; exit 1; }
 
 print_info "Upgrading pip..."
 pip install --upgrade pip --quiet
@@ -236,7 +246,7 @@ if [ ! -d ".venv" ]; then
 fi
 
 print_info "Activating virtual environment..."
-source .venv/bin/activate
+source .venv/bin/activate || { print_error "Failed to activate XML parser virtual environment"; cd "$INSTALL_DIR"; exit 1; }
 
 print_info "Upgrading pip..."
 pip install --upgrade pip --quiet
