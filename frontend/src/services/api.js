@@ -31,6 +31,11 @@ export const authApi = {
   me: () => api.get('/api/v1/auth/me'),
 }
 
+// Google Sheets integration (backend -> Google)
+export const gsheetsApi = {
+  appendJournalRow: (payload) => api.post('/api/v1/gsheets/journal/append', payload),
+}
+
 // Materials API
 export const materials = {
   getAll: (params) => api.get('/api/v1/materials/', { params }),
