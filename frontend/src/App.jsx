@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
+import LoginPage from './pages/LoginPage'
+import { useAuth } from './context/AuthContext'
 import DashboardPage from './pages/DashboardPage'
 import MaterialsPage from './pages/MaterialsPage'
 import StockPage from './pages/StockPage'
@@ -8,8 +10,18 @@ import InvoicesPage from './pages/InvoicesPage'
 import PurchaseDetailsPage from './pages/PurchaseDetailsPage'
 
 function App() {
+  const { isAuthenticated, loading, user, logout } = useAuth()
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
   return (
-    <Layout>
+    <Layout user={user} onLogout={logout}>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
         <Route path="/materials" element={<MaterialsPage />} />

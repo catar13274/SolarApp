@@ -21,6 +21,7 @@ The production build will be created in the `dist/` directory.
 ## API Configuration
 
 The frontend needs to know how to connect to the backend API. This is configured via the `VITE_API_URL` environment variable.
+For Google login, also configure `VITE_GOOGLE_CLIENT_ID`.
 
 ### ⚠️ IMPORTANT: Avoiding Hardcoded IP Addresses
 

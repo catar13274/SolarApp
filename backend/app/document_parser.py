@@ -312,20 +312,8 @@ def parse_document(file_path: str, file_extension: str) -> Dict:
     Returns:
         Dictionary with invoice data including items
     """
-    text = ""
-    
-    # Extract text based on file type
-    if file_extension == 'pdf':
-        text = extract_text_from_pdf(file_path)
-    elif file_extension == 'docx':
-        text = extract_text_from_docx(file_path)
-    elif file_extension == 'doc':
-        text = extract_text_from_doc(file_path)
-    elif file_extension == 'txt':
-        text = extract_text_from_txt(file_path)
-    else:
-        raise Exception(f"Unsupported file format: {file_extension}")
-    
+    text = extract_document_text(file_path, file_extension)
+
     if not text:
         logger.warning(f"No text extracted from {file_extension} file")
         return {
@@ -339,3 +327,19 @@ def parse_document(file_path: str, file_extension: str) -> Dict:
     
     # Parse the extracted text
     return parse_invoice_materials(text)
+
+
+def extract_document_text(file_path: str, file_extension: str) -> str:
+    """Extract raw text from a supported invoice file type."""
+    if file_extension == 'pdf':
+        return extract_text_from_pdf(file_path)
+    if file_extension == 'docx':
+        return extract_text_from_docx(file_path)
+    if file_extension == 'doc':
+        return extract_text_from_doc(file_path)
+    if file_extension == 'txt':
+        return extract_text_from_txt(file_path)
+    if file_extension == 'xml':
+        return extract_text_from_txt(file_path)
+
+    raise Exception(f"Unsupported file format: {file_extension}")

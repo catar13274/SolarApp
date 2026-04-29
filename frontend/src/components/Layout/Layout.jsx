@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Navbar from './Navbar'
 
-const Layout = ({ children }) => {
+const Layout = ({ children, user, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const toggleSidebar = () => {
@@ -14,7 +14,7 @@ const Layout = ({ children }) => {
       <Sidebar isOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Navbar toggleSidebar={toggleSidebar} />
+        <Navbar toggleSidebar={toggleSidebar} user={user} onLogout={onLogout} />
         
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">

@@ -11,6 +11,7 @@ import httpx
 from ..database import get_session
 from ..models import Invoice, Purchase, PurchaseItem
 from ..document_parser import parse_document
+from ..gemini_invoice_parser import parse_invoice_with_gemini
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
@@ -113,70 +114,98 @@ async def upload_invoice(
     content = await file.read()
     with open(file_path, 'wb') as f:
         f.write(content)
+
+    parser_provider = os.getenv("INVOICE_PARSER_PROVIDER", "legacy").strip().lower()
+    gemini_api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
     
     # Only parse XML files
     if file_extension == 'xml':
-        # Read configuration from environment
-        xml_parser_url = os.getenv("XML_PARSER_URL", "http://localhost:5000")
-        xml_parser_token = os.getenv("XML_PARSER_TOKEN", "dev-token-12345")
-        
-        # Security warning for default token
-        if xml_parser_token == "dev-token-12345":
-            logger.warning(
-                "Using default XML_PARSER_TOKEN='dev-token-12345'. "
-                "This is insecure for production! Set XML_PARSER_TOKEN environment variable."
-            )
-        
-        # Parse XML using parser service
-        try:
-            async with httpx.AsyncClient() as client:
-                with open(file_path, 'rb') as f:
-                    files = {'file': (file.filename, f, 'application/xml')}
-                    headers = {'X-API-Token': xml_parser_token}
-                    
-                    response = await client.post(
-                        f"{xml_parser_url}/parse",
-                        files=files,
-                        headers=headers,
-                        timeout=30.0
-                    )
-                    
-                    if response.status_code == 401:
-                        raise HTTPException(
-                            status_code=502,
-                            detail="XML parser authentication failed. Please check XML_PARSER_TOKEN configuration."
+        if parser_provider == "gemini":
+            if not gemini_api_key:
+                raise HTTPException(
+                    status_code=500,
+                    detail="INVOICE_PARSER_PROVIDER is 'gemini' but GEMINI_API_KEY is not set."
+                )
+            try:
+                parsed_data = await parse_invoice_with_gemini(
+                    file_path=file_path,
+                    file_extension=file_extension,
+                    api_key=gemini_api_key,
+                    model=gemini_model,
+                )
+            except httpx.HTTPStatusError as e:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Gemini API error: {e.response.status_code}"
+                )
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error parsing invoice with Gemini: {str(e)}"
+                )
+        else:
+            # Read configuration from environment
+            xml_parser_url = os.getenv("XML_PARSER_URL", "http://localhost:5000")
+            xml_parser_token = os.getenv("XML_PARSER_TOKEN", "dev-token-12345")
+            
+            # Security warning for default token
+            if xml_parser_token == "dev-token-12345":
+                logger.warning(
+                    "Using default XML_PARSER_TOKEN='dev-token-12345'. "
+                    "This is insecure for production! Set XML_PARSER_TOKEN environment variable."
+                )
+            
+            # Parse XML using parser service
+            try:
+                async with httpx.AsyncClient() as client:
+                    with open(file_path, 'rb') as f:
+                        files = {'file': (file.filename, f, 'application/xml')}
+                        headers = {'X-API-Token': xml_parser_token}
+                        
+                        response = await client.post(
+                            f"{xml_parser_url}/parse",
+                            files=files,
+                            headers=headers,
+                            timeout=30.0
                         )
-                    elif response.status_code != 200:
-                        error_detail = "Failed to parse XML invoice"
-                        try:
-                            error_data = response.json()
-                            if 'error' in error_data:
-                                error_detail = f"XML parser error: {error_data['error']}"
-                        except Exception:
-                            pass
-                        raise HTTPException(
-                            status_code=502,
-                            detail=error_detail
-                        )
-                    
-                    parsed_data = response.json()
-        except httpx.ConnectError:
-            raise HTTPException(
-                status_code=503,
-                detail=f"XML parser service is not available at {xml_parser_url}. Please ensure the service is running."
-            )
-        except httpx.TimeoutException:
-            raise HTTPException(
-                status_code=504,
-                detail="XML parser service timed out. Please try again later."
-            )
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error parsing invoice: {str(e)}"
-            )
+                        
+                        if response.status_code == 401:
+                            raise HTTPException(
+                                status_code=502,
+                                detail="XML parser authentication failed. Please check XML_PARSER_TOKEN configuration."
+                            )
+                        elif response.status_code != 200:
+                            error_detail = "Failed to parse XML invoice"
+                            try:
+                                error_data = response.json()
+                                if 'error' in error_data:
+                                    error_detail = f"XML parser error: {error_data['error']}"
+                            except Exception:
+                                pass
+                            raise HTTPException(
+                                status_code=502,
+                                detail=error_detail
+                            )
+                        
+                        parsed_data = response.json()
+            except httpx.ConnectError:
+                raise HTTPException(
+                    status_code=503,
+                    detail=f"XML parser service is not available at {xml_parser_url}. Please ensure the service is running."
+                )
+            except httpx.TimeoutException:
+                raise HTTPException(
+                    status_code=504,
+                    detail="XML parser service timed out. Please try again later."
+                )
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error parsing invoice: {str(e)}"
+                )
         
         # Extract invoice data from parsed XML
         invoice_number = parsed_data.get('invoice_number', '')
@@ -259,7 +288,27 @@ async def upload_invoice(
     else:
         # For non-XML files, parse using document parser
         try:
-            parsed_data = parse_document(file_path, file_extension)
+            if parser_provider == "gemini":
+                if not gemini_api_key:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="INVOICE_PARSER_PROVIDER is 'gemini' but GEMINI_API_KEY is not set."
+                    )
+                parsed_data = await parse_invoice_with_gemini(
+                    file_path=file_path,
+                    file_extension=file_extension,
+                    api_key=gemini_api_key,
+                    model=gemini_model,
+                )
+            else:
+                parsed_data = parse_document(file_path, file_extension)
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=f"Gemini API error: {e.response.status_code}"
+            )
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error parsing {file_extension} document: {e}")
             # If parsing fails, create a basic record

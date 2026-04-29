@@ -26,6 +26,11 @@ const api = axios.create({
   },
 })
 
+export const authApi = {
+  google: (idToken) => api.post('/api/v1/auth/google', { id_token: idToken }),
+  me: () => api.get('/api/v1/auth/me'),
+}
+
 // Materials API
 export const materials = {
   getAll: (params) => api.get('/api/v1/materials/', { params }),

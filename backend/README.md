@@ -88,6 +88,44 @@ Configure these in your `.env` file:
 - `XML_PARSER_URL` - URL for the XML parser service (default: `http://localhost:5000`)
 - `XML_PARSER_TOKEN` - Authentication token for XML parser service
 - `CORS_ORIGINS` - Comma-separated list of allowed CORS origins
+- `INVOICE_PARSER_PROVIDER` - `legacy` (default) or `gemini` for invoice extraction
+- `GEMINI_API_KEY` - API key used when `INVOICE_PARSER_PROVIDER=gemini`
+- `GEMINI_MODEL` - Gemini model name (default: `gemini-1.5-flash`)
+- `GOOGLE_SHEETS_SPREADSHEET_ID` - Spreadsheet ID used by export script
+- `GOOGLE_SERVICE_ACCOUNT_FILE` - Path to Google service account JSON credentials
+- `GOOGLE_CLIENT_ID` - OAuth client ID from Google Cloud Console
+- `ALLOWED_GOOGLE_DOMAINS` - Comma-separated allowed domains (e.g. `freevoltsrl.ro,energoteamconect.ro`)
+- `ALLOWED_GOOGLE_EMAILS` - Optional comma-separated explicit allowlist (if set, only these emails are accepted)
+- `APP_JWT_SECRET` - Secret key used to sign session JWT tokens
+- `APP_JWT_EXPIRES_MINUTES` - Session validity in minutes (default: `480`)
+
+## Google Workspace Login
+
+Authentication is available through Google Identity Services:
+
+- Backend endpoint: `POST /api/v1/auth/google`
+- Frontend requires `VITE_GOOGLE_CLIENT_ID` in `frontend/.env`
+- API endpoints under `/api/v1/*` are protected and require bearer token
+
+Users are allowed if:
+- Their domain exists in `ALLOWED_GOOGLE_DOMAINS`
+- And, if `ALLOWED_GOOGLE_EMAILS` is set, their exact email is included there
+
+## Google Sheets Export
+
+Use the migration script to export all SQL tables into Google Sheets worksheets:
+
+```bash
+cd backend
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+python migrate_to_gsheets.py
+```
+
+Before running:
+- Create a Google service account in Google Cloud Console
+- Download credentials JSON file locally
+- Share your target Google Sheet with the service account email
+- Set `GOOGLE_SHEETS_SPREADSHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_FILE` in `.env`
 
 ## Database Schema
 

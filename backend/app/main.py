@@ -15,8 +15,9 @@ from sqlmodel import Session, select
 load_dotenv()
 
 from .database import create_db_and_tables, get_session
+from .auth import get_current_user
 from .models import Material, Stock, Project
-from .api import materials, stock, projects, purchases, invoices
+from .api import materials, stock, projects, purchases, invoices, auth
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -43,11 +44,12 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(materials.router)
-app.include_router(stock.router)
-app.include_router(projects.router)
-app.include_router(purchases.router)
-app.include_router(invoices.router)
+app.include_router(auth.router)
+app.include_router(materials.router, dependencies=[Depends(get_current_user)])
+app.include_router(stock.router, dependencies=[Depends(get_current_user)])
+app.include_router(projects.router, dependencies=[Depends(get_current_user)])
+app.include_router(purchases.router, dependencies=[Depends(get_current_user)])
+app.include_router(invoices.router, dependencies=[Depends(get_current_user)])
 
 
 # Get the path to the frontend dist directory
@@ -67,7 +69,10 @@ def on_startup():
 
 
 @app.get("/api/v1/dashboard/stats")
-def get_dashboard_stats(session: Session = Depends(get_session)):
+def get_dashboard_stats(
+    session: Session = Depends(get_session),
+    _user=Depends(get_current_user),
+):
     """Get dashboard statistics."""
     # Total materials
     total_materials = len(session.exec(select(Material)).all())
