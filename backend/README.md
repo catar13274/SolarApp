@@ -127,6 +127,14 @@ Before running:
 - Share your target Google Sheet with the service account email
 - Set `GOOGLE_SHEETS_SPREADSHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_FILE` in `.env`
 
+## Live Journal Auto-Append
+
+Când confirmi intrări/ieșiri în stoc din aplicație, frontend-ul apelează backend-ul, iar backend-ul adaugă un rând în worksheet-ul `JURNAL_TRANZACTII`.
+
+- Endpoint: `POST /api/v1/gsheets/journal/append`
+- Date trimise: `movement_type`, `material_sku`, `material_name`, `quantity`, `unit_price`, `currency`, `reference_type`, `reference_id`, `notes`
+- Worksheet (nume): implicit `JURNAL_TRANZACTII` (poți suprascrie cu `GSHEETS_JURNAL_SHEET_NAME`)
+
 ## Database Schema
 
 The database includes the following tables:

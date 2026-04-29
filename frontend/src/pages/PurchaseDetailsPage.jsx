@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Package, FileText, Plus, Edit2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { purchases, materials } from '../services/api'
+import { purchases, materials, gsheetsApi } from '../services/api'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Badge from '../components/Common/Badge'
@@ -43,11 +43,23 @@ const PurchaseDetailsPage = () => {
   })
 
   const addToStockMutation = useMutation({
-    mutationFn: ({ itemId, materialId }) => 
-      purchases.addItemToStock(id, itemId, materialId),
-    onSuccess: () => {
+    mutationFn: async ({ itemId, materialId }) => {
+      return purchases.addItemToStock(id, itemId, materialId)
+    },
+    onSuccess: async (_, variables) => {
       toast.success('Item added to stock successfully!')
       queryClient.invalidateQueries(['purchase', id])
+
+      // Try to append the live row to Google Sheets journal.
+      // Sheet failures should not block the main app flow.
+      if (variables?.journal) {
+        try {
+          await gsheetsApi.appendJournalRow(variables.journal)
+        } catch (e) {
+          toast.error(e?.response?.data?.detail || 'Failed to append journal row in Google Sheets')
+        }
+      }
+
       setIsAddToStockModalOpen(false)
       setSelectedItem(null)
       setSelectedMaterialId('')
@@ -80,12 +92,22 @@ const PurchaseDetailsPage = () => {
   }, [purchase?.items])
 
   const createMaterialMutation = useMutation({
-    mutationFn: ({ itemId, data }) => 
-      purchases.createMaterialFromItem(id, itemId, data),
-    onSuccess: () => {
+    mutationFn: async ({ itemId, data }) => {
+      return purchases.createMaterialFromItem(id, itemId, data)
+    },
+    onSuccess: async (_, variables) => {
       toast.success('Material created and item added to stock!')
       queryClient.invalidateQueries(['purchase', id])
       queryClient.invalidateQueries(['materials'])
+
+      if (variables?.journal) {
+        try {
+          await gsheetsApi.appendJournalRow(variables.journal)
+        } catch (e) {
+          toast.error(e?.response?.data?.detail || 'Failed to append journal row in Google Sheets')
+        }
+      }
+
       setIsCreateMaterialModalOpen(false)
       setIsAddToStockModalOpen(false)
       setSelectedItem(null)
@@ -123,9 +145,28 @@ const PurchaseDetailsPage = () => {
 
   const handleConfirmAddToStock = () => {
     if (selectedItem && selectedMaterialId) {
+      const material = materialsData?.find((m) => m.id === parseInt(selectedMaterialId, 10))
+      if (!material) {
+        toast.error('Selected material not found')
+        return
+      }
+
+      const journalPayload = {
+        movement_type: 'in',
+        material_sku: material.sku || '',
+        material_name: material.name || '',
+        quantity: selectedItem.quantity,
+        unit_price: selectedItem.unit_price,
+        currency: purchase.currency,
+        reference_type: 'purchase',
+        reference_id: id,
+        notes: `Added from purchase ${purchase.invoice_number || id}`,
+      }
+
       addToStockMutation.mutate({
         itemId: selectedItem.id,
-        materialId: parseInt(selectedMaterialId, 10)
+        materialId: parseInt(selectedMaterialId, 10),
+        journal: journalPayload,
       })
     }
   }
@@ -156,9 +197,22 @@ const PurchaseDetailsPage = () => {
 
   const handleConfirmCreateMaterial = () => {
     if (selectedItem) {
+      const journalPayload = {
+        movement_type: 'in',
+        material_sku: createMaterialForm.sku || '',
+        material_name: createMaterialForm.name || '',
+        quantity: selectedItem.quantity,
+        unit_price: createMaterialForm.unit_price,
+        currency: purchase.currency,
+        reference_type: 'purchase',
+        reference_id: id,
+        notes: `Created material from purchase ${purchase.invoice_number || id}`,
+      }
+
       createMaterialMutation.mutate({
         itemId: selectedItem.id,
-        data: createMaterialForm
+        data: createMaterialForm,
+        journal: journalPayload,
       })
     }
   }

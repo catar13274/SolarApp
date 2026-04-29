@@ -17,7 +17,7 @@ load_dotenv()
 from .database import create_db_and_tables, get_session
 from .auth import get_current_user
 from .models import Material, Stock, Project
-from .api import materials, stock, projects, purchases, invoices, auth
+from .api import materials, stock, projects, purchases, invoices, auth, gsheets
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ app.include_router(stock.router, dependencies=[Depends(get_current_user)])
 app.include_router(projects.router, dependencies=[Depends(get_current_user)])
 app.include_router(purchases.router, dependencies=[Depends(get_current_user)])
 app.include_router(invoices.router, dependencies=[Depends(get_current_user)])
+app.include_router(gsheets.router, dependencies=[Depends(get_current_user)])
 
 
 # Get the path to the frontend dist directory

@@ -7,6 +7,7 @@ from datetime import datetime
 
 from ..database import get_session
 from ..models import Stock, StockMovement, Material
+from ..gsheets_journal import append_journal_row
 
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
 
@@ -178,5 +179,25 @@ def create_movement(movement: StockMovement, session: Session = Depends(get_sess
     session.add(stock)
     session.commit()
     session.refresh(movement)
+
+    # Best-effort: also append the live row to Google Sheets journal.
+    # Failures should not block the main operation.
+    try:
+        append_journal_row(
+            {
+                "movement_type": movement.movement_type,
+                "material_sku": material.sku,
+                "material_name": material.name,
+                "quantity": movement.quantity,
+                "unit_price": movement.unit_price,
+                "currency": "",  # StockMovement doesn't store currency
+                "reference_type": movement.reference_type,
+                "reference_id": movement.reference_id,
+                "notes": movement.notes or "",
+            }
+        )
+    except Exception:
+        # Keep app usable even if Google Sheets is not configured.
+        pass
     
     return movement
