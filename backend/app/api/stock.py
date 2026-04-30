@@ -3,10 +3,10 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
-from datetime import datetime
 
 from ..database import get_session
 from ..models import Stock, StockMovement, Material
+from ..stock_service import apply_stock_movement
 
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
 
@@ -37,7 +37,7 @@ def list_stock(
                 select(StockMovement)
                 .where(StockMovement.material_id == stock.material_id)
                 .where(StockMovement.movement_type == "in")
-                .where(StockMovement.unit_price is not None)
+                .where(StockMovement.unit_price.is_not(None))
                 .order_by(StockMovement.created_at.desc())
             ).first()
             
@@ -69,7 +69,7 @@ def get_low_stock(session: Session = Depends(get_session)):
                 select(StockMovement)
                 .where(StockMovement.material_id == stock.material_id)
                 .where(StockMovement.movement_type == "in")
-                .where(StockMovement.unit_price is not None)
+                .where(StockMovement.unit_price.is_not(None))
                 .order_by(StockMovement.created_at.desc())
             ).first()
             
@@ -136,46 +136,16 @@ def get_stock(material_id: int, session: Session = Depends(get_session)):
 @router.post("/movement", response_model=StockMovement)
 def create_movement(movement: StockMovement, session: Session = Depends(get_session)):
     """Record stock movement and update stock levels."""
-    # Verify material exists
-    material = session.get(Material, movement.material_id)
-    if not material:
-        raise HTTPException(status_code=404, detail="Material not found")
-    
-    # Get or create stock entry
-    stock = session.exec(
-        select(Stock).where(Stock.material_id == movement.material_id)
-    ).first()
-    
-    if not stock:
-        stock = Stock(
-            material_id=movement.material_id,
-            quantity=0.0,
-            location="Main Warehouse"
-        )
-        session.add(stock)
-    
-    # Update stock based on movement type
-    if movement.movement_type == "in":
-        stock.quantity += movement.quantity
-    elif movement.movement_type == "out":
-        if stock.quantity < movement.quantity:
-            raise HTTPException(
-                status_code=400,
-                detail="Insufficient stock"
-            )
-        stock.quantity -= movement.quantity
-    elif movement.movement_type == "adjustment":
-        stock.quantity = movement.quantity
-    elif movement.movement_type == "transfer":
-        # For transfers, we just adjust the quantity
-        stock.quantity += movement.quantity
-    
-    stock.updated_at = datetime.utcnow()
-    
-    # Create movement record
-    movement.created_at = datetime.utcnow()
-    session.add(movement)
-    session.add(stock)
+    movement = apply_stock_movement(
+        session=session,
+        material_id=movement.material_id,
+        movement_type=movement.movement_type,
+        quantity=movement.quantity,
+        unit_price=movement.unit_price,
+        reference_type=movement.reference_type,
+        reference_id=movement.reference_id,
+        notes=movement.notes,
+    )
     session.commit()
     session.refresh(movement)
     

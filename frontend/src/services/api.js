@@ -81,6 +81,11 @@ export const invoices = {
       'Content-Type': 'multipart/form-data',
     },
   }),
+  parsePreview: (formData) => api.post('/api/v1/invoices/parse-preview', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
   delete: (id) => api.delete(`/api/v1/invoices/${id}`),
 }
 

@@ -7,9 +7,10 @@ from sqlmodel import Session, select
 from datetime import datetime, date, timezone
 
 from ..database import get_session
-from ..models import Project, ProjectMaterial, Material, StockMovement, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
+from ..models import Project, ProjectMaterial, Material, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
 from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
 from ..word_service import generate_commercial_offer_word
+from ..stock_service import apply_stock_movement
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
 
@@ -297,16 +298,15 @@ def use_materials(
             project_material.quantity_used += item.quantity
             session.add(project_material)
         
-        # Create stock movement
-        movement = StockMovement(
+        apply_stock_movement(
+            session=session,
             material_id=item.material_id,
             movement_type="out",
             quantity=item.quantity,
             reference_type="project",
             reference_id=project_id,
-            notes=f"Used in project: {project.name}"
+            notes=f"Used in project: {project.name}",
         )
-        session.add(movement)
     
     session.commit()
     

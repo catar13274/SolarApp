@@ -3,7 +3,6 @@
 import re
 import logging
 from typing import List, Dict, Optional
-from io import BytesIO
 
 # Import PDF and DOC parsing libraries
 try:
@@ -19,6 +18,70 @@ except ImportError:
     DOCX_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+COMPANY_HINTS = ("srl", "s.r.l", "sa", "s.a", "srl.", "s.a.", "srl,", "s.a,")
+TOTAL_KEYWORDS = (
+    "total de plata",
+    "total plata",
+    "de plata",
+    "total general",
+    "grand total",
+    "total",
+)
+EMPTY_PARSE_RESULT = {
+    'invoice_number': '',
+    'invoice_date': '',
+    'supplier_name': '',
+    'currency': 'RON',
+    'total_amount': 0.0,
+    'items': []
+}
+
+
+def parse_decimal(value: str) -> Optional[float]:
+    """Parse decimal values from mixed locale formats."""
+    if value is None:
+        return None
+    cleaned = value.strip().replace(" ", "")
+    cleaned = re.sub(r"[^\d,.\-]", "", cleaned)
+    if not cleaned:
+        return None
+
+    # If both separators exist, assume the right-most separator is decimal.
+    if "," in cleaned and "." in cleaned:
+        if cleaned.rfind(",") > cleaned.rfind("."):
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            cleaned = cleaned.replace(",", "")
+    elif "," in cleaned:
+        # Romanian style decimal separator.
+        cleaned = cleaned.replace(".", "").replace(",", ".")
+
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def extract_amount_candidates(text: str) -> List[float]:
+    """Extract numeric amounts with decimal part."""
+    pattern = r"(?<!\d)(?:\d{1,3}(?:[.\s,]\d{3})+|\d+)(?:[.,]\d{2})(?!\d)"
+    values: List[float] = []
+    for match in re.findall(pattern, text):
+        value = parse_decimal(match)
+        if value is not None:
+            values.append(value)
+    return values
+
+
+def is_likely_supplier_line(line: str) -> bool:
+    line_lower = line.lower().strip()
+    if len(line_lower) < 3:
+        return False
+    if any(hint in line_lower for hint in COMPANY_HINTS):
+        return True
+    if line_lower.startswith("furnizor") or line_lower.startswith("supplier"):
+        return True
+    return False
 
 
 def extract_text_from_pdf(file_path: str) -> str:
@@ -105,18 +168,17 @@ def parse_invoice_materials(text: str) -> Dict:
         'items': []
     }
     
-    lines = text.split('\n')
+    lines = [line.strip() for line in text.split('\n')]
     
     # Pattern matching for common invoice fields
     for i, line in enumerate(lines):
-        line_lower = line.lower().strip()
+        line_lower = line.lower()
         
         # Extract invoice number
         if not result['invoice_number']:
             invoice_patterns = [
-                r'(?:invoice|factura|nr\.?\s*factura)[:\s#]*([A-Z0-9\-/]+)',
-                r'(?:invoice\s*(?:no|number|nr)[:\s#]*([A-Z0-9\-/]+))',
-                r'nr\.?\s*(\d+[A-Z0-9\-/]*)',
+                r'(?:factura\s*(?:fiscala)?|invoice)\s*(?:nr|no|number)?\.?[:\s#-]*([A-Z0-9][A-Z0-9\-/]{2,})',
+                r'(?:nr\.?\s*factura)[:\s#-]*([A-Z0-9][A-Z0-9\-/]{2,})',
             ]
             for pattern in invoice_patterns:
                 match = re.search(pattern, line, re.IGNORECASE)
@@ -128,8 +190,8 @@ def parse_invoice_materials(text: str) -> Dict:
         if not result['invoice_date']:
             date_patterns = [
                 r'(?:date|data)[:\s]*(\d{1,2}[\./-]\d{1,2}[\./-]\d{2,4})',
-                r'(\d{1,2}[\./-]\d{1,2}[\./-]\d{2,4})',
                 r'(\d{4}-\d{2}-\d{2})',
+                r'(\d{1,2}[\./-]\d{1,2}[\./-]\d{2,4})',
             ]
             for pattern in date_patterns:
                 match = re.search(pattern, line, re.IGNORECASE)
@@ -140,7 +202,7 @@ def parse_invoice_materials(text: str) -> Dict:
                     break
         
         # Extract supplier name (usually near the top)
-        if not result['supplier_name'] and i < 10:
+        if not result['supplier_name'] and i < 15:
             supplier_patterns = [
                 r'(?:supplier|furnizor|seller)[:\s]+(.+)',
                 r'(?:s\.?c\.?)\s+([A-Z][A-Za-z\s&\.]+(?:s\.?r\.?l\.?|s\.?a\.?))',
@@ -150,19 +212,26 @@ def parse_invoice_materials(text: str) -> Dict:
                 if match:
                     result['supplier_name'] = match.group(1).strip()
                     break
+            if not result['supplier_name'] and is_likely_supplier_line(line):
+                result['supplier_name'] = line.strip()
         
         # Extract total amount
-        if 'total' in line_lower or 'suma' in line_lower:
-            amount_pattern = r'(\d{1,3}(?:[,\.\s]\d{3})*[,\.]\d{2}|\d+[,\.]\d{2}|\d+)'
-            match = re.search(amount_pattern, line)
-            if match:
-                amount_str = match.group(1).replace(',', '.').replace(' ', '')
-                try:
-                    amount = float(amount_str)
-                    if amount > result['total_amount']:
-                        result['total_amount'] = amount
-                except ValueError:
-                    pass
+        if any(keyword in line_lower for keyword in TOTAL_KEYWORDS):
+            for amount in extract_amount_candidates(line):
+                if amount > result['total_amount']:
+                    result['total_amount'] = amount
+    
+    # Fallback totals and currency detection from full text
+    text_lower = text.lower()
+    if "eur" in text_lower:
+        result["currency"] = "EUR"
+    elif "usd" in text_lower:
+        result["currency"] = "USD"
+
+    if result["total_amount"] <= 0:
+        for amount in extract_amount_candidates(text):
+            if amount > result["total_amount"]:
+                result["total_amount"] = amount
     
     # Extract line items
     # Look for table-like structures with materials
@@ -180,14 +249,14 @@ def extract_line_items(text: str) -> List[Dict]:
     - Numeric patterns for quantities and prices
     """
     items = []
-    lines = text.split('\n')
+    lines = [line.strip() for line in text.split('\n')]
     
     # Try to identify table headers
     header_idx = -1
     for i, line in enumerate(lines):
         line_lower = line.lower()
         # Look for common table headers
-        if any(keyword in line_lower for keyword in ['descriere', 'description', 'produs', 'material', 'item']):
+        if any(keyword in line_lower for keyword in ['descriere', 'description', 'produs', 'material', 'item', 'denumire']):
             if any(keyword in line_lower for keyword in ['cantitate', 'quantity', 'qty', 'cant']):
                 header_idx = i
                 break
@@ -195,9 +264,11 @@ def extract_line_items(text: str) -> List[Dict]:
     # If we found a header, parse the following lines as table rows
     if header_idx >= 0:
         for i in range(header_idx + 1, min(header_idx + 100, len(lines))):
-            line = lines[i].strip()
+            line = lines[i]
             if not line:
                 continue
+            if any(stop in line.lower() for stop in ["subtotal", "total", "tva", "observatii", "notes"]):
+                break
             
             # Try to extract item information using patterns
             item = parse_line_item(line)
@@ -210,8 +281,23 @@ def extract_line_items(text: str) -> List[Dict]:
             item = parse_line_item(line)
             if item and item['quantity'] > 0 and item['unit_price'] > 0:
                 items.append(item)
-    
-    return items
+
+    # De-duplicate very similar rows (common in extracted PDFs)
+    deduped: List[Dict] = []
+    seen = set()
+    for item in items:
+        key = (
+            item["description"].lower(),
+            round(float(item["quantity"]), 4),
+            round(float(item["unit_price"]), 4),
+            round(float(item["total_price"]), 4),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    return deduped
 
 
 def parse_line_item(line: str) -> Optional[Dict]:
@@ -222,67 +308,70 @@ def parse_line_item(line: str) -> Optional[Dict]:
     - "Product name | 10 | 100.00 | 1000.00"
     - "Product name, 10 buc, 100.00 RON, 1000.00 RON"
     """
-    # Skip lines that are likely headers or totals
-    # Only skip if these keywords appear without other content (likely a header row)
     line_lower = line.lower().strip()
-    line_words = line_lower.split()
-    
-    # Check if line is primarily a header (contains header keywords and few other words)
-    header_keywords = ['total', 'subtotal', 'tva', 'tax', 'discount']
-    table_header_keywords = ['descriere', 'description', 'cantitate', 'quantity', 'pret', 'price', 'produs', 'product']
-    
-    # Skip if it's a total/subtotal line
+    header_keywords = ['total', 'subtotal', 'tva', 'tax', 'discount', 'observatii', 'notes']
+    table_header_keywords = ['descriere', 'description', 'cantitate', 'quantity', 'pret', 'price', 'produs', 'product', 'denumire']
+
     if any(keyword in line_lower for keyword in header_keywords):
         return None
-    
-    # Skip if it appears to be a table header (has multiple header keywords and no numbers)
+
     header_count = sum(1 for kw in table_header_keywords if kw in line_lower)
     if header_count >= 2 and len(re.findall(r'\d', line)) < 3:
         return None
-    
-    # Extract numbers from the line
-    numbers = re.findall(r'\d+(?:[,\.]\d+)?', line)
-    if len(numbers) < 2:
+
+    # Support both pipe/tabular and simple spaced rows.
+    working_line = re.sub(r"[|;\t]", " ", line).strip()
+    amount_matches = re.findall(
+        r"(?<!\d)(?:\d{1,3}(?:[.\s,]\d{3})+|\d+)(?:[.,]\d{2})(?!\d)",
+        working_line,
+    )
+    if len(amount_matches) < 1:
         return None
-    
-    # Convert to floats
-    try:
-        numeric_values = [float(n.replace(',', '.')) for n in numbers]
-    except ValueError:
+
+    amount_values = [v for v in (parse_decimal(x) for x in amount_matches) if v is not None]
+    if not amount_values:
         return None
-    
-    # Heuristic: If we have 3 or more numbers, the pattern is likely: quantity, unit_price, total_price
-    # If we have exactly 2 numbers, assume quantity and price (calculate total)
-    if len(numeric_values) >= 3:
-        # Take the last 3 numbers as quantity, unit_price, total_price
-        quantity = numeric_values[-3]
-        unit_price = numeric_values[-2]
-        total_price = numeric_values[-1]
-    elif len(numeric_values) == 2:
-        quantity = numeric_values[0]
-        unit_price = numeric_values[1]
-        total_price = quantity * unit_price
+
+    # Determine unit/total from the right-most amounts.
+    if len(amount_values) >= 2:
+        unit_price = amount_values[-2]
+        total_price = amount_values[-1]
     else:
-        return None
-    
-    # Extract description (text before numbers start)
-    # Find position of first number
-    first_num_match = re.search(r'\d', line)
+        unit_price = amount_values[-1]
+        total_price = amount_values[-1]
+
+    # Quantity can be integer or decimal, optionally followed by unit labels.
+    qty_match = re.search(
+        r"(?<!\d)(\d+(?:[.,]\d{1,3})?)\s*(?:buc|kg|m|mp|set|pcs|x)?\b",
+        working_line,
+        re.IGNORECASE,
+    )
+    quantity = parse_decimal(qty_match.group(1)) if qty_match else None
+    if quantity is None or quantity <= 0:
+        # Fallback based on amount relation when possible.
+        if unit_price > 0 and total_price >= unit_price:
+            quantity = round(total_price / unit_price, 3)
+        else:
+            quantity = 1.0
+
+    # Extract description as text before first numeric chunk.
+    first_num_match = re.search(r'\d', working_line)
     if first_num_match:
-        description = line[:first_num_match.start()].strip()
+        description = working_line[:first_num_match.start()].strip(" -.:")
     else:
-        description = line[:50].strip()
-    
-    # Skip if description is too short or looks like a number
+        description = working_line[:80].strip()
+
     if len(description) < 3 or description.replace(' ', '').isdigit():
         return None
-    
+    if re.match(r"^(factura|invoice|data|furnizor|supplier)\b", description.lower()):
+        return None
+
     return {
         'description': description,
         'sku': '',
-        'quantity': quantity,
-        'unit_price': unit_price,
-        'total_price': total_price
+        'quantity': float(quantity),
+        'unit_price': float(unit_price),
+        'total_price': float(total_price),
     }
 
 
@@ -302,40 +391,27 @@ def normalize_date(date_str: str) -> str:
     return date_str
 
 
-def parse_document(file_path: str, file_extension: str) -> Dict:
-    """Parse document and extract invoice data.
-    
-    Args:
-        file_path: Path to the document file
-        file_extension: File extension (pdf, doc, docx, txt)
-    
-    Returns:
-        Dictionary with invoice data including items
-    """
-    text = ""
-    
+def extract_document_text(file_path: str, file_extension: str) -> str:
+    """Extract raw text from supported document types."""
     # Extract text based on file type
     if file_extension == 'pdf':
-        text = extract_text_from_pdf(file_path)
+        return extract_text_from_pdf(file_path)
     elif file_extension == 'docx':
-        text = extract_text_from_docx(file_path)
+        return extract_text_from_docx(file_path)
     elif file_extension == 'doc':
-        text = extract_text_from_doc(file_path)
+        return extract_text_from_doc(file_path)
     elif file_extension == 'txt':
-        text = extract_text_from_txt(file_path)
-    else:
-        raise Exception(f"Unsupported file format: {file_extension}")
-    
+        return extract_text_from_txt(file_path)
+    raise Exception(f"Unsupported file format: {file_extension}")
+
+
+def parse_document(file_path: str, file_extension: str) -> Dict:
+    """Parse document and extract invoice data."""
+    text = extract_document_text(file_path, file_extension)
+
     if not text:
         logger.warning(f"No text extracted from {file_extension} file")
-        return {
-            'invoice_number': '',
-            'invoice_date': '',
-            'supplier_name': '',
-            'currency': 'RON',
-            'total_amount': 0.0,
-            'items': []
-        }
+        return EMPTY_PARSE_RESULT.copy()
     
     # Parse the extracted text
     return parse_invoice_materials(text)

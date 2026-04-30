@@ -7,7 +7,8 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from ..database import get_session
-from ..models import Purchase, PurchaseItem, StockMovement, Material, PurchaseCreate, PurchaseItemUpdate, Stock
+from ..models import Purchase, PurchaseItem, Material, PurchaseCreate, PurchaseItemUpdate
+from ..stock_service import apply_stock_movement
 
 router = APIRouter(prefix="/api/v1/purchases", tags=["purchases"])
 
@@ -63,18 +64,16 @@ def add_purchase_item_to_stock(
     purchase_item.material_id = request.material_id
     session.add(purchase_item)
     
-    # Create stock movement
-    movement = StockMovement(
+    apply_stock_movement(
+        session=session,
         material_id=request.material_id,
         movement_type="in",
         quantity=purchase_item.quantity,
-        unit_price=purchase_item.unit_price,  # Track acquisition price
+        unit_price=purchase_item.unit_price,
         reference_type="purchase",
         reference_id=purchase_id,
         notes=f"Added from purchase {purchase.invoice_number or purchase_id}",
-        created_at=datetime.utcnow()
     )
-    session.add(movement)
     
     session.commit()
     session.refresh(purchase_item)
@@ -128,31 +127,20 @@ def create_material_from_purchase_item(
     session.commit()
     session.refresh(material)
     
-    # Create initial stock entry with the purchase item quantity
-    stock = Stock(
-        material_id=material.id,
-        quantity=purchase_item.quantity,
-        location="Main Warehouse",
-        updated_at=datetime.utcnow()
-    )
-    session.add(stock)
-    
     # Update purchase item with material_id
     purchase_item.material_id = material.id
     session.add(purchase_item)
     
-    # Create stock movement
-    movement = StockMovement(
+    apply_stock_movement(
+        session=session,
         material_id=material.id,
         movement_type="in",
         quantity=purchase_item.quantity,
-        unit_price=purchase_item.unit_price,  # Track acquisition price
+        unit_price=purchase_item.unit_price,
         reference_type="purchase",
         reference_id=purchase_id,
         notes=f"Created material from purchase {purchase.invoice_number or purchase_id}",
-        created_at=datetime.utcnow()
     )
-    session.add(movement)
     
     session.commit()
     session.refresh(purchase_item)
@@ -277,17 +265,16 @@ def create_purchase(
         
         # Create stock movement if material is matched
         if item.material_id:
-            movement = StockMovement(
+            apply_stock_movement(
+                session=session,
                 material_id=item.material_id,
                 movement_type="in",
                 quantity=item.quantity,
-                unit_price=item.unit_price,  # Track acquisition price
+                unit_price=item.unit_price,
                 reference_type="purchase",
                 reference_id=purchase.id,
                 notes=f"Purchase from {purchase.supplier}",
-                created_at=datetime.utcnow()
             )
-            session.add(movement)
     
     session.commit()
     session.refresh(purchase)

@@ -1,7 +1,9 @@
 """Invoices API endpoints."""
 
 import os
+import re
 import logging
+from uuid import uuid4
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlmodel import Session, select
@@ -10,12 +12,95 @@ import httpx
 
 from ..database import get_session
 from ..models import Invoice, Purchase, PurchaseItem
-from ..document_parser import parse_document
+from ..document_parser import parse_document, extract_document_text, parse_invoice_materials
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
 
 # Configure logging
 logger = logging.getLogger(__name__)
+ALLOWED_EXTENSIONS = {"xml", "pdf", "doc", "docx", "xls", "xlsx", "txt"}
+MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(10 * 1024 * 1024)))
+INVOICE_PARSER_DEBUG_ENABLED = os.getenv("INVOICE_PARSER_DEBUG_ENABLED", "false").lower() in ("1", "true", "yes")
+
+
+def _sanitize_filename(filename: str) -> str:
+    """Keep filename safe for local filesystem use."""
+    base = os.path.basename((filename or "").strip())
+    if not base:
+        return "invoice"
+    name, _dot, ext = base.rpartition(".")
+    name = name or "invoice"
+    safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", name).strip("._-") or "invoice"
+    safe_ext = re.sub(r"[^A-Za-z0-9]", "", ext).lower()
+    return f"{safe_name}.{safe_ext}" if safe_ext else safe_name
+
+
+def _store_upload(file: UploadFile, content: bytes) -> tuple[str, str, str]:
+    """Persist upload and return (safe_filename, extension, file_path)."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Missing filename")
+
+    safe_filename = _sanitize_filename(file.filename)
+    file_extension = safe_filename.split('.')[-1].lower() if '.' in safe_filename else ''
+    if file_extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File type not supported. Allowed formats: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+        )
+    if len(content) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE_BYTES} bytes."
+        )
+
+    upload_dir = "uploads"
+    os.makedirs(upload_dir, exist_ok=True)
+    unique_filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{uuid4().hex}_{safe_filename}"
+    file_path = os.path.join(upload_dir, unique_filename)
+    with open(file_path, 'wb') as f:
+        f.write(content)
+
+    return safe_filename, file_extension, file_path
+
+
+@router.post("/parse-preview")
+async def parse_invoice_preview(file: UploadFile = File(...)):
+    """Preview parser output without creating purchase/invoice records."""
+    if not INVOICE_PARSER_DEBUG_ENABLED:
+        raise HTTPException(status_code=403, detail="Parser preview is disabled.")
+
+    content = await file.read()
+    safe_filename, file_extension, file_path = _store_upload(file, content)
+
+    try:
+        if file_extension == "xml":
+            raise HTTPException(
+                status_code=400,
+                detail="Use /upload for XML files. Preview is intended for PDF/DOC/TXT calibration."
+            )
+
+        extracted_text = extract_document_text(file_path, file_extension)
+        parsed_data = parse_invoice_materials(extracted_text) if extracted_text else {
+            'invoice_number': '',
+            'invoice_date': '',
+            'supplier_name': '',
+            'currency': 'RON',
+            'total_amount': 0.0,
+            'items': []
+        }
+        return {
+            "filename": safe_filename,
+            "file_format": file_extension,
+            "text_preview": extracted_text[:4000],
+            "text_length": len(extracted_text),
+            "parsed_data": parsed_data,
+        }
+    finally:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                logger.warning("Failed to remove preview upload file: %s", file_path)
 
 
 @router.get("/", response_model=List[Invoice])
@@ -93,26 +178,8 @@ async def upload_invoice(
     session: Session = Depends(get_session)
 ):
     """Upload invoice file (XML, PDF, DOC, XLS, TXT), parse XML and create purchase."""
-    # Get file extension
-    file_extension = file.filename.split('.')[-1].lower() if '.' in file.filename else ''
-    
-    # List of allowed extensions
-    allowed_extensions = ['xml', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt']
-    
-    if file_extension not in allowed_extensions:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"File type not supported. Allowed formats: {', '.join(allowed_extensions)}"
-        )
-    
-    # Save uploaded file
-    upload_dir = "uploads"
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, file.filename)
-    
     content = await file.read()
-    with open(file_path, 'wb') as f:
-        f.write(content)
+    safe_filename, file_extension, file_path = _store_upload(file, content)
     
     # Only parse XML files
     if file_extension == 'xml':
@@ -131,7 +198,7 @@ async def upload_invoice(
         try:
             async with httpx.AsyncClient() as client:
                 with open(file_path, 'rb') as f:
-                    files = {'file': (file.filename, f, 'application/xml')}
+                    files = {'file': (safe_filename, f, 'application/xml')}
                     headers = {'X-API-Token': xml_parser_token}
                     
                     response = await client.post(
@@ -273,7 +340,7 @@ async def upload_invoice(
             }
         
         # Use filename as fallback for invoice number
-        invoice_number = parsed_data.get('invoice_number') or file.filename.rsplit('.', 1)[0]
+        invoice_number = parsed_data.get('invoice_number') or safe_filename.rsplit('.', 1)[0]
         
         # Get other fields with fallbacks
         supplier = parsed_data.get('supplier_name') or 'Pending'

@@ -10,6 +10,8 @@ import LoadingSpinner from '../Common/LoadingSpinner'
 const InvoiceUpload = ({ onSuccess, onCancel }) => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploadResult, setUploadResult] = useState(null)
+  const [previewResult, setPreviewResult] = useState(null)
+  const [showRawText, setShowRawText] = useState(false)
 
   const uploadMutation = useMutation({
     mutationFn: (file) => {
@@ -30,6 +32,22 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
     },
   })
 
+  const previewMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return invoices.parsePreview(formData)
+    },
+    onSuccess: (response) => {
+      setPreviewResult(response.data)
+      toast.success('Parser preview generated')
+    },
+    onError: (error) => {
+      setPreviewResult(null)
+      toast.error(error.response?.data?.detail || 'Failed to preview parser output')
+    },
+  })
+
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
@@ -39,6 +57,8 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
       if (allowedExtensions.includes(fileExtension)) {
         setSelectedFile(file)
         setUploadResult(null)
+        setPreviewResult(null)
+        setShowRawText(false)
       } else {
         toast.error('Only XML, PDF, DOC, XLS, and TXT files are allowed')
       }
@@ -67,9 +87,16 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
     }
   }
 
+  const handlePreview = () => {
+    if (!selectedFile) return
+    previewMutation.mutate(selectedFile)
+  }
+
   const handleRemoveFile = () => {
     setSelectedFile(null)
     setUploadResult(null)
+    setPreviewResult(null)
+    setShowRawText(false)
   }
 
   return (
@@ -157,12 +184,65 @@ const InvoiceUpload = ({ onSuccess, onCancel }) => {
               Cancel
             </Button>
             <Button
+              type="button"
+              variant="secondary"
+              onClick={handlePreview}
+              disabled={!selectedFile || uploadMutation.isPending || previewMutation.isPending}
+            >
+              {previewMutation.isPending ? 'Previewing...' : 'Preview Parsing'}
+            </Button>
+            <Button
               onClick={handleUpload}
-              disabled={!selectedFile || uploadMutation.isPending}
+              disabled={!selectedFile || uploadMutation.isPending || previewMutation.isPending}
             >
               {uploadMutation.isPending ? 'Uploading...' : 'Upload & Process'}
             </Button>
           </div>
+
+          {/* Preview Result */}
+          {previewResult && (
+            <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+              <h4 className="font-semibold text-indigo-900 mb-2">Parser Preview (no DB write)</h4>
+              <div className="text-sm text-indigo-800 space-y-1">
+                <p><span className="font-medium">Invoice:</span> {previewResult.parsed_data?.invoice_number || '-'}</p>
+                <p><span className="font-medium">Supplier:</span> {previewResult.parsed_data?.supplier_name || '-'}</p>
+                <p><span className="font-medium">Date:</span> {previewResult.parsed_data?.invoice_date || '-'}</p>
+                <p>
+                  <span className="font-medium">Total:</span>{' '}
+                  {previewResult.parsed_data?.total_amount ?? 0} {previewResult.parsed_data?.currency || 'RON'}
+                </p>
+                <p><span className="font-medium">Items:</span> {previewResult.parsed_data?.items?.length || 0}</p>
+              </div>
+              {previewResult.parsed_data?.items?.length > 0 && (
+                <div className="mt-3 max-h-36 overflow-auto rounded border border-indigo-100 bg-white p-2 text-xs text-gray-700">
+                  {previewResult.parsed_data.items.slice(0, 5).map((item, idx) => (
+                    <div key={`${item.description}-${idx}`} className="py-1 border-b last:border-b-0">
+                      {item.description} | Qty: {item.quantity} | Unit: {item.unit_price} | Total: {item.total_price}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowRawText(prev => !prev)}
+                >
+                  {showRawText ? 'Hide Raw Text' : 'Show Raw Text'}
+                </Button>
+              </div>
+              {showRawText && (
+                <div className="mt-2 rounded border border-indigo-100 bg-white p-3">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Extracted text preview ({previewResult.text_length || 0} chars)
+                  </p>
+                  <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs text-gray-700">
+                    {previewResult.text_preview || 'No text extracted'}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
         </>
       ) : (
         <>
