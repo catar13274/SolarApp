@@ -150,8 +150,12 @@ python google_sheets_desktop_auth.py
 Dacă rulezi prin SSH, scriptul afișează URL-ul de auth și poți folosi SSH port forwarding:
 
 ```bash
-ssh -L 8088:127.0.0.1:8088 <pi-user>@<pi-host>
+ssh -L 8080:127.0.0.1:8080 <pi-user>@<pi-host>
 ```
+
+Notă:
+- Scriptul folosește implicit `http://localhost:8080` pentru `run_local_server`.
+- Poți schimba portul cu `GOOGLE_OAUTH_LOCAL_PORT`.
 
 ## Database Schema
 
