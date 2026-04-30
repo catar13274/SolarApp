@@ -135,6 +135,28 @@ Când confirmi intrări/ieșiri în stoc din aplicație, frontend-ul apelează b
 - Date trimise: `movement_type`, `material_sku`, `material_name`, `quantity`, `unit_price`, `currency`, `reference_type`, `reference_id`, `notes`
 - Worksheet (nume): implicit `JURNAL_TRANZACTII` (poți suprascrie cu `GSHEETS_JURNAL_SHEET_NAME`)
 
+## Desktop OAuth for Sheets (Raspberry / SSH)
+
+Poți folosi OAuth Desktop (loopback pe `127.0.0.1`) pentru a genera `token.json` și a lista produsele din sheet-ul `NOMENCLATOR_PRODUSE`.
+
+```bash
+cd backend
+source .venv/bin/activate
+export GOOGLE_OAUTH_CLIENT_SECRETS_FILE=/opt/SolarApp/desktop-client-secret.json
+export GOOGLE_SHEETS_SPREADSHEET_ID=<sheet_id>
+python google_sheets_desktop_auth.py
+```
+
+Dacă rulezi prin SSH, scriptul afișează URL-ul de auth și poți folosi SSH port forwarding:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 <pi-user>@<pi-host>
+```
+
+Notă:
+- Scriptul folosește implicit `http://localhost:8080` pentru `run_local_server`.
+- Poți schimba portul cu `GOOGLE_OAUTH_LOCAL_PORT`.
+
 ## Database Schema
 
 The database includes the following tables:
