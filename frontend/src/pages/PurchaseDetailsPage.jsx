@@ -43,7 +43,8 @@ const PurchaseDetailsPage = () => {
   })
 
   const addToStockMutation = useMutation({
-    mutationFn: async ({ itemId, materialId }) => {
+    mutationFn: async ({ itemId, materialId, journal }) => {
+      void journal
       return purchases.addItemToStock(id, itemId, materialId)
     },
     onSuccess: async (_, variables) => {
@@ -92,7 +93,8 @@ const PurchaseDetailsPage = () => {
   }, [purchase?.items])
 
   const createMaterialMutation = useMutation({
-    mutationFn: async ({ itemId, data }) => {
+    mutationFn: async ({ itemId, data, journal }) => {
+      void journal
       return purchases.createMaterialFromItem(id, itemId, data)
     },
     onSuccess: async (_, variables) => {

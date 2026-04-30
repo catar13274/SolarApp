@@ -387,6 +387,15 @@ Contributions are welcome! Here's how you can help:
 6. **Push to your branch**: `git push origin feature/your-feature-name`
 7. **Open a Pull Request**: Describe your changes and their benefits
 
+### Local pre-commit safety hook (recommended)
+
+To block accidental commits of `.env` files and real allowlist emails:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit scripts/git-precommit-check.sh
+```
+
 ### Development Guidelines
 
 - Follow PEP 8 style guide for Python code
