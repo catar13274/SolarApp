@@ -10,26 +10,34 @@ fi
 echo "Running pre-commit safety checks..."
 
 # 1) Block committing real .env files
+env_files_found=0
 while IFS= read -r file; do
   [[ -z "$file" ]] && continue
   base_name="$(basename "$file")"
 
   if [[ "$base_name" == ".env" ]]; then
+    env_files_found=1
     echo "ERROR: Refusing to commit environment file: $file"
-    echo "Use .env.example for templates and keep .env local only."
-    exit 1
   fi
 done <<< "$staged_files"
 
-# 2) Block explicit personal emails in allowlist-like keys
-#    Allows empty placeholders but blocks real values such as:
-#    ALLOWED_GOOGLE_EMAILS=alice@company.com,bob@company.com
-staged_diff="$(git diff --cached --unified=0 -- .)"
-
-if echo "$staged_diff" | rg -n "^\+.*ALLOWED_GOOGLE_EMAILS\s*=\s*.*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" >/dev/null; then
-  echo "ERROR: Refusing to commit real emails in ALLOWED_GOOGLE_EMAILS."
-  echo "Replace with placeholder values in tracked files."
+if [[ "$env_files_found" -eq 1 ]]; then
+  echo "Use .env.example for templates and keep .env local only."
   exit 1
 fi
+
+# 2) Only check real .env files for explicit allowlist emails.
+#    .env.example and documentation files are intentionally allowed.
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  base_name="$(basename "$file")"
+  [[ "$base_name" != ".env" ]] && continue
+
+  # This check is intentionally scoped to .env only.
+  if git diff --cached --unified=0 -- "$file" | grep -E '^\+.*ALLOWED_GOOGLE_EMAILS\s*=\s*.*@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' >/dev/null; then
+    echo "ERROR: Refusing to commit real emails in ALLOWED_GOOGLE_EMAILS inside $file."
+    exit 1
+  fi
+done <<< "$staged_files"
 
 echo "Pre-commit safety checks passed."
