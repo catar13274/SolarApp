@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
@@ -22,6 +23,11 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
     queryKey: ['materials'],
     queryFn: () => materials.getAll().then(res => res.data),
   })
+
+  const sortedMaterials = useMemo(
+    () => [...(materialsData || [])].sort((a, b) => a.name.localeCompare(b.name, 'ro', { sensitivity: 'base' })),
+    [materialsData]
+  )
 
   const createMutation = useMutation({
     mutationFn: (data) => stock.createMovement(data),
@@ -65,9 +71,9 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
         required
         options={[
           { value: '', label: 'Select a material' },
-          ...(materialsData || []).map(m => ({
+          ...sortedMaterials.map(m => ({
             value: m.id.toString(),
-            label: `${m.name} (${m.sku})`
+            label: `${m.name} (${m.sku}) - ${m.company === 'energoteamconect.ro' ? 'Energoteam' : 'Freevolt'}`
           }))
         ]}
         {...register('material_id', { 

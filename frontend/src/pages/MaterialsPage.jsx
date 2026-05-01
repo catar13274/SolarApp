@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Search } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Download, Upload } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { materials } from '../services/api'
 import Card from '../components/Common/Card'
@@ -16,14 +16,17 @@ const MaterialsPage = () => {
   const [editingMaterial, setEditingMaterial] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
+  const importInputRef = useRef(null)
   
   const queryClient = useQueryClient()
 
   const { data: materialsData, isLoading } = useQuery({
-    queryKey: ['materials', searchTerm, categoryFilter],
+    queryKey: ['materials', searchTerm, categoryFilter, companyFilter],
     queryFn: () => materials.getAll({ 
       search: searchTerm || undefined,
       category: categoryFilter || undefined,
+      company: companyFilter || undefined,
     }).then(res => res.data),
   })
 
@@ -35,6 +38,47 @@ const MaterialsPage = () => {
     },
     onError: () => {
       toast.error('Failed to delete material')
+    },
+  })
+
+  const exportMutation = useMutation({
+    mutationFn: () => materials.exportExcel({ company: companyFilter || undefined }),
+    onSuccess: (response) => {
+      const blob = new Blob([response.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `materials_export_${new Date().toISOString().slice(0, 10)}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Materials exported successfully')
+    },
+    onError: () => {
+      toast.error('Failed to export materials')
+    },
+  })
+
+  const importMutation = useMutation({
+    mutationFn: (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      return materials.importExcel(formData)
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries(['materials'])
+      const { created = 0, updated = 0, skipped = 0, errors = [] } = response.data || {}
+      const msg = `Import completed: ${created} created, ${updated} updated, ${skipped} skipped`
+      toast.success(msg)
+      if (errors.length > 0) {
+        toast.error(`Import completed with ${errors.length} errors. Check backend response for details.`)
+      }
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.detail || 'Failed to import materials')
     },
   })
 
@@ -52,6 +96,23 @@ const MaterialsPage = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingMaterial(null)
+  }
+
+  const handleImportClick = () => {
+    importInputRef.current?.click()
+  }
+
+  const handleImportFileChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const fileName = file.name.toLowerCase()
+    if (!fileName.endsWith('.xlsx')) {
+      toast.error('Please select an .xlsx file')
+      event.target.value = ''
+      return
+    }
+    importMutation.mutate(file)
+    event.target.value = ''
   }
 
   const categories = [
@@ -73,10 +134,35 @@ const MaterialsPage = () => {
             Manage your solar panel components and materials
           </p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="h-5 w-5 mr-2" />
-          Add Material
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".xlsx"
+            className="hidden"
+            onChange={handleImportFileChange}
+          />
+          <Button
+            variant="secondary"
+            onClick={() => exportMutation.mutate()}
+            disabled={exportMutation.isPending}
+          >
+            <Download className="h-5 w-5 mr-2" />
+            {exportMutation.isPending ? 'Exporting...' : 'Export Excel'}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleImportClick}
+            disabled={importMutation.isPending}
+          >
+            <Upload className="h-5 w-5 mr-2" />
+            {importMutation.isPending ? 'Importing...' : 'Import Excel'}
+          </Button>
+          <Button onClick={() => setIsModalOpen(true)}>
+            <Plus className="h-5 w-5 mr-2" />
+            Add Material
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -103,6 +189,15 @@ const MaterialsPage = () => {
               </option>
             ))}
           </select>
+          <select
+            value={companyFilter}
+            onChange={(e) => setCompanyFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">All Companies</option>
+            <option value="freevoltsrl.ro">Freevolt SRL</option>
+            <option value="energoteamconect.ro">Energoteam Conect</option>
+          </select>
         </div>
 
         {/* Materials Table */}
@@ -118,6 +213,9 @@ const MaterialsPage = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Company
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
@@ -152,6 +250,11 @@ const MaterialsPage = () => {
                           </div>
                         )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant="info">
+                        {material.company === 'energoteamconect.ro' ? 'Energoteam Conect' : 'Freevolt SRL'}
+                      </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="default">

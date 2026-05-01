@@ -57,6 +57,25 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
 def create_db_and_tables():
     """Create all database tables."""
     SQLModel.metadata.create_all(engine)
+    _ensure_material_company_column()
+
+
+def _ensure_material_company_column():
+    """Backfill schema for older databases without material.company."""
+    if "sqlite" not in DATABASE_URL:
+        return
+
+    with engine.connect() as conn:
+        columns = conn.exec_driver_sql("PRAGMA table_info(material)").fetchall()
+        column_names = {col[1] for col in columns}
+        if "company" not in column_names:
+            conn.exec_driver_sql(
+                "ALTER TABLE material ADD COLUMN company VARCHAR DEFAULT 'freevoltsrl.ro'"
+            )
+            conn.exec_driver_sql(
+                "UPDATE material SET company='freevoltsrl.ro' WHERE company IS NULL OR company=''"
+            )
+            conn.commit()
 
 
 def get_session():

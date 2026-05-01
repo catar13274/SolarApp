@@ -79,6 +79,14 @@ const PurchaseDetailsPage = () => {
     )
   }, [purchase?.items])
 
+  const availableMaterials = useMemo(
+    () =>
+      (materialsData || [])
+        .filter((material) => !linkedMaterialIds.has(material.id))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ro', { sensitivity: 'base' })),
+    [materialsData, linkedMaterialIds]
+  )
+
   const createMaterialMutation = useMutation({
     mutationFn: ({ itemId, data }) => 
       purchases.createMaterialFromItem(id, itemId, data),
@@ -377,13 +385,11 @@ const PurchaseDetailsPage = () => {
                 required
               >
                 <option value="">-- Select a material --</option>
-                {materialsData
-                  ?.filter((material) => !linkedMaterialIds.has(material.id))
-                  .map((material) => (
-                    <option key={material.id} value={material.id}>
-                      {material.name} ({material.sku})
-                    </option>
-                  ))}
+                {availableMaterials.map((material) => (
+                  <option key={material.id} value={material.id}>
+                    {material.name} ({material.sku}) - {material.company === 'energoteamconect.ro' ? 'Energoteam' : 'Freevolt'}
+                  </option>
+                ))}
               </Select>
             </div>
 

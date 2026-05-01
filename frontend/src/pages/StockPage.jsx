@@ -101,6 +101,9 @@ const StockPage = () => {
                     Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Company
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Quantity
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -132,6 +135,11 @@ const StockPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="default">
                         {item.material_category}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant="info">
+                        {item.material_company === 'energoteamconect.ro' ? 'Energoteam Conect' : 'Freevolt SRL'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">

@@ -29,6 +29,7 @@ def list_stock(
             stock_dict["material_name"] = material.name
             stock_dict["material_sku"] = material.sku
             stock_dict["material_category"] = material.category
+            stock_dict["material_company"] = material.company
             stock_dict["min_stock"] = material.min_stock
             stock_dict["is_low"] = stock.quantity < material.min_stock
             
@@ -61,6 +62,7 @@ def get_low_stock(session: Session = Depends(get_session)):
             stock_dict["material_name"] = material.name
             stock_dict["material_sku"] = material.sku
             stock_dict["material_category"] = material.category
+            stock_dict["material_company"] = material.company
             stock_dict["min_stock"] = material.min_stock
             stock_dict["shortage"] = material.min_stock - stock.quantity
             

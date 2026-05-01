@@ -13,6 +13,7 @@ class Material(SQLModel, table=True):
     name: str = Field(index=True)
     sku: str = Field(unique=True, index=True)
     description: Optional[str] = None
+    company: str = "freevoltsrl.ro"
     category: str  # "panel", "inverter", "battery", "cable", "mounting", "other"
     unit: str = "buc"  # Unit of measurement
     unit_price: float = 0.0

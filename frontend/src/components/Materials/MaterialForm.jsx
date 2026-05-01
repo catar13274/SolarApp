@@ -14,6 +14,7 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
       name: '',
       sku: '',
       description: '',
+      company: 'freevoltsrl.ro',
       category: 'panel',
       unit: 'buc',
       unit_price: 0,
@@ -66,6 +67,11 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
     { value: 'other', label: 'Other' },
   ]
 
+  const companies = [
+    { value: 'freevoltsrl.ro', label: 'Freevolt SRL' },
+    { value: 'energoteamconect.ro', label: 'Energoteam Conect' },
+  ]
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -91,6 +97,14 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Select
+          label="Company"
+          required
+          options={companies}
+          {...register('company', { required: 'Company is required' })}
+          error={errors.company?.message}
+        />
+
         <Select
           label="Category"
           required

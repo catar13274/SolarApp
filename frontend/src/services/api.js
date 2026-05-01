@@ -33,6 +33,12 @@ export const materials = {
   create: (data) => api.post('/api/v1/materials/', data),
   update: (id, data) => api.put(`/api/v1/materials/${id}`, data),
   delete: (id) => api.delete(`/api/v1/materials/${id}`),
+  exportExcel: (params) => api.get('/api/v1/materials/export', { params, responseType: 'blob' }),
+  importExcel: (formData) => api.post('/api/v1/materials/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
 }
 
 // Stock API
