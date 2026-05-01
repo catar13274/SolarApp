@@ -3,6 +3,7 @@
 from datetime import datetime
 from io import BytesIO
 from typing import List, Optional
+import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
@@ -13,6 +14,12 @@ from ..database import get_session
 from ..models import Material, Stock
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
+TVA_RATE = 0.21
+
+
+def _normalize_header(value: str) -> str:
+    text = unicodedata.normalize("NFKD", value or "").encode("ascii", "ignore").decode("ascii")
+    return " ".join(text.strip().lower().split())
 
 
 @router.get("/", response_model=List[dict])
@@ -72,28 +79,39 @@ def export_materials(
     sheet = workbook.active
     sheet.title = "Materials"
     headers = [
-        "name",
-        "sku",
-        "description",
-        "company",
-        "category",
-        "unit",
-        "unit_price",
-        "min_stock",
+        "Cod Produs",
+        "Denumire Produs",
+        "Cant.",
+        "U.M.",
+        "Pret Unit. (fara TVA)",
+        "Taxa Verde (RON)",
+        "Valoare (fara TVA)",
+        "TVA (21%)",
+        "Valoare cu TVA",
+        "Compania",
     ]
     sheet.append(headers)
 
     for material in materials:
+        stock = session.exec(select(Stock).where(Stock.material_id == material.id)).first()
+        quantity = float(stock.quantity if stock else 0.0)
+        unit_price = float(material.unit_price or 0.0)
+        green_tax = 0.0
+        value_without_vat = (quantity * unit_price) + green_tax
+        vat_value = value_without_vat * TVA_RATE
+        value_with_vat = value_without_vat + vat_value
         sheet.append(
             [
-                material.name,
                 material.sku,
-                material.description or "",
-                material.company,
-                material.category,
+                material.name,
+                quantity,
                 material.unit,
-                material.unit_price,
-                material.min_stock,
+                unit_price,
+                green_tax,
+                value_without_vat,
+                vat_value,
+                value_with_vat,
+                material.company,
             ]
         )
 
@@ -132,19 +150,37 @@ async def import_materials(
     if not rows:
         raise HTTPException(status_code=400, detail="Excel file does not contain any rows.")
 
-    raw_headers = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
-    required_headers = {"name", "sku", "category", "unit", "unit_price", "min_stock"}
-    if not required_headers.issubset(set(raw_headers)):
+    raw_headers = [_normalize_header(str(cell) if cell is not None else "") for cell in rows[0]]
+
+    header_aliases = {
+        "sku": ["cod produs", "sku"],
+        "name": ["denumire produs", "name", "nume produs"],
+        "quantity": ["cant.", "cant", "cantitate", "qty", "quantity"],
+        "unit": ["u.m.", "u.m", "um", "unit", "u m"],
+        "unit_price": ["pret unit. (fara tva)", "pret unitar", "unit_price", "pret unit fara tva"],
+        "company": ["compania", "company", "firma"],
+        "green_tax": ["taxa verde (ron)", "taxa verde"],
+        "value_without_vat": ["valoare (fara tva)"],
+        "vat": ["tva (21%)", "tva"],
+        "value_with_vat": ["valoare cu tva"],
+    }
+
+    header_index = {}
+    for canonical, aliases in header_aliases.items():
+        idx = next((i for i, col in enumerate(raw_headers) if col in aliases), None)
+        if idx is not None:
+            header_index[canonical] = idx
+
+    required_headers = {"sku", "name", "quantity", "unit", "unit_price", "company"}
+    if not required_headers.issubset(set(header_index.keys())):
         raise HTTPException(
             status_code=400,
             detail=(
                 "Missing required columns. Required: "
-                "name, sku, category, unit, unit_price, min_stock "
-                "(description is optional)."
+                "Cod Produs, Denumire Produs, Cant., U.M., Pret Unit. (fara TVA), Compania"
             ),
         )
 
-    header_index = {header: idx for idx, header in enumerate(raw_headers)}
     created = 0
     updated = 0
     skipped = 0
@@ -156,15 +192,15 @@ async def import_materials(
             continue
 
         def get_val(key: str):
+            if key not in header_index:
+                return None
             idx = header_index[key]
             return row[idx] if idx < len(row) else None
 
         sku = str(get_val("sku") or "").strip()
         name = str(get_val("name") or "").strip()
-        category = str(get_val("category") or "").strip() or "other"
         company = str(get_val("company") or "").strip() or "freevoltsrl.ro"
         unit = str(get_val("unit") or "").strip() or "buc"
-        description = str(get_val("description") or "").strip() if "description" in header_index else ""
 
         if not sku or not name:
             skipped += 1
@@ -172,40 +208,41 @@ async def import_materials(
 
         try:
             unit_price = float(get_val("unit_price") or 0)
-            min_stock = int(float(get_val("min_stock") or 0))
+            quantity = float(get_val("quantity") or 0)
         except (ValueError, TypeError):
-            errors.append(f"Row {row_num}: invalid numeric values for unit_price/min_stock")
+            errors.append(f"Row {row_num}: invalid numeric values for Cant./Pret Unit.")
             continue
 
         existing = session.exec(select(Material).where(Material.sku == sku)).first()
         if existing:
             existing.name = name
-            existing.description = description or None
-            existing.category = category
             existing.company = company
             existing.unit = unit
             existing.unit_price = unit_price
-            existing.min_stock = min_stock
             existing.updated_at = datetime.utcnow()
             session.add(existing)
+            stock = session.exec(select(Stock).where(Stock.material_id == existing.id)).first()
+            if stock:
+                stock.quantity = quantity
+                session.add(stock)
             updated += 1
         else:
             material = Material(
                 name=name,
                 sku=sku,
-                description=description or None,
+                description=None,
                 company=company,
-                category=category,
+                category="other",
                 unit=unit,
                 unit_price=unit_price,
-                min_stock=min_stock,
+                min_stock=0,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )
             session.add(material)
             session.flush()
 
-            stock = Stock(material_id=material.id, quantity=0.0, location="Main Warehouse")
+            stock = Stock(material_id=material.id, quantity=quantity, location="Main Warehouse")
             session.add(stock)
             created += 1
 
