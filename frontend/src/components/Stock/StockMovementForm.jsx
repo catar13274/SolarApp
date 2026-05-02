@@ -7,7 +7,7 @@ import Button from '../Common/Button'
 import Input from '../Common/Input'
 import Select from '../Common/Select'
 
-const StockMovementForm = ({ onSuccess, onCancel }) => {
+const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
   const queryClient = useQueryClient()
   const { register, handleSubmit, watch, formState: { errors } } = useForm({
     mode: 'onChange',
@@ -20,8 +20,9 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
   })
 
   const { data: materialsData } = useQuery({
-    queryKey: ['materials'],
-    queryFn: () => materials.getAll().then(res => res.data),
+    queryKey: ['materials', companyFilter],
+    queryFn: () =>
+      materials.getAll({ company: companyFilter || undefined }).then((res) => res.data),
   })
 
   const sortedMaterials = useMemo(
@@ -66,6 +67,11 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {companyFilter && sortedMaterials.length === 0 && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Nu exista materiale pentru firma selectata. Alegeti alta firma sus in pagina sau adaugati materiale pentru aceasta firma.
+        </p>
+      )}
       <Select
         label="Material"
         required
@@ -73,7 +79,7 @@ const StockMovementForm = ({ onSuccess, onCancel }) => {
           { value: '', label: 'Select a material' },
           ...sortedMaterials.map(m => ({
             value: m.id.toString(),
-            label: `${m.name} (${m.sku}) - ${m.company === 'energoteamconect.ro' ? 'Energoteam' : 'Freevolt'}`
+            label: `${m.name} (${m.sku}) — ${m.company_display_name || m.company}`
           }))
         ]}
         {...register('material_id', { 

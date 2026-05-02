@@ -2,7 +2,8 @@ import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Search, Download, Upload } from 'lucide-react'
 import { toast } from 'react-hot-toast'
-import { materials } from '../services/api'
+import { materials, companies } from '../services/api'
+import { useCompanyScope } from '../hooks/useCompanyScope'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Badge from '../components/Common/Badge'
@@ -16,10 +17,15 @@ const MaterialsPage = () => {
   const [editingMaterial, setEditingMaterial] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [companyFilter, setCompanyFilter] = useState('')
+  const [companyFilter, setCompanyFilter] = useCompanyScope()
   const importInputRef = useRef(null)
   
   const queryClient = useQueryClient()
+
+  const { data: companiesList } = useQuery({
+    queryKey: ['companies'],
+    queryFn: () => companies.getAll().then((res) => res.data),
+  })
 
   const { data: materialsData, isLoading } = useQuery({
     queryKey: ['materials', searchTerm, categoryFilter, companyFilter],
@@ -192,11 +198,15 @@ const MaterialsPage = () => {
           <select
             value={companyFilter}
             onChange={(e) => setCompanyFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[200px]"
+            title="Filtreaza materialele dupa firma (aceasi selectie ca la Stoc)"
           >
-            <option value="">All Companies</option>
-            <option value="freevoltsrl.ro">Freevolt SRL</option>
-            <option value="energoteamconect.ro">Energoteam Conect</option>
+            <option value="">Toate firmele</option>
+            {(companiesList || []).map((c) => (
+              <option key={c.id} value={c.code}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -253,7 +263,7 @@ const MaterialsPage = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="info">
-                        {material.company === 'energoteamconect.ro' ? 'Energoteam Conect' : 'Freevolt SRL'}
+                        {material.company_display_name || material.company}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

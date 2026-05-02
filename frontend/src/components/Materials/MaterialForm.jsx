@@ -1,13 +1,18 @@
 import { useForm } from 'react-hook-form'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
-import { materials } from '../../services/api'
+import { materials, companies } from '../../services/api'
 import Button from '../Common/Button'
 import Input from '../Common/Input'
 import Select from '../Common/Select'
 
 const MaterialForm = ({ material, onSuccess, onCancel }) => {
   const queryClient = useQueryClient()
+
+  const { data: companiesList } = useQuery({
+    queryKey: ['companies'],
+    queryFn: () => companies.getAll().then((res) => res.data),
+  })
   const { register, handleSubmit, formState: { errors } } = useForm({
     mode: 'onChange',
     defaultValues: material || {
@@ -67,10 +72,10 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
     { value: 'other', label: 'Other' },
   ]
 
-  const companies = [
-    { value: 'freevoltsrl.ro', label: 'Freevolt SRL' },
-    { value: 'energoteamconect.ro', label: 'Energoteam Conect' },
-  ]
+  const companyOptions = (companiesList || []).map((c) => ({
+    value: c.code,
+    label: c.name,
+  }))
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -98,10 +103,14 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
-          label="Company"
+          label="Firma (stoc)"
           required
-          options={companies}
-          {...register('company', { required: 'Company is required' })}
+          options={
+            companyOptions.length > 0
+              ? companyOptions
+              : [{ value: 'freevoltsrl.ro', label: 'Freevolt SRL (implicit)' }]
+          }
+          {...register('company', { required: 'Alegeti firma' })}
           error={errors.company?.message}
         />
 
@@ -121,6 +130,11 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
           placeholder="e.g., buc, m, kg"
         />
       </div>
+      {companyOptions.length === 0 && (
+        <p className="text-sm text-amber-700">
+          Nu exista firme inregistrate. Mergeti la meniul <strong>Firme</strong> si adaugati cel putin o societate inainte de a salva materiale.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
