@@ -119,4 +119,20 @@ export const dashboard = {
   getStats: () => api.get('/api/v1/dashboard/stats'),
 }
 
+// SQLite backup / restore (requires SOLARAPP_BACKUP_TOKEN on server + same token in X-Solarapp-Backup-Token header)
+export const databaseAdmin = {
+  downloadBackup: (token) =>
+    api.get('/api/v1/admin/database/backup', {
+      headers: { 'X-Solarapp-Backup-Token': token },
+      responseType: 'blob',
+    }),
+  restore: (file, token) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/v1/admin/database/restore', formData, {
+      headers: { 'X-Solarapp-Backup-Token': token },
+    })
+  },
+}
+
 export default api

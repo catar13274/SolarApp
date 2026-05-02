@@ -6,12 +6,12 @@ from sqlmodel import Session, select
 
 from ..database import get_session
 from ..models import Company, Stock, StockMovement, Material
+from ..stock_service import apply_stock_movement
 
 
 def _company_labels(session: Session) -> dict:
     rows = session.exec(select(Company)).all()
     return {r.code: r.name for r in rows}
-from ..stock_service import apply_stock_movement
 
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
 

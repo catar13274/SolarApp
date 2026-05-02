@@ -10,6 +10,16 @@ from sqlalchemy.engine import Engine
 # Get database URL from environment or use default SQLite
 DATABASE_URL = os.getenv("SOLARAPP_DB_URL", "sqlite:///./data/solarapp.db")
 
+def get_sqlite_file_path():
+    """Absolute path to the SQLite database file, or None if DATABASE_URL is not SQLite."""
+    if "sqlite:///" not in DATABASE_URL:
+        return None
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    if db_path.startswith("./"):
+        return (Path.cwd() / db_path[2:]).resolve()
+    return Path(db_path).resolve()
+
+
 # Ensure the database directory exists for SQLite databases
 if "sqlite:///" in DATABASE_URL:
     db_path = DATABASE_URL.replace("sqlite:///", "")

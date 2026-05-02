@@ -16,7 +16,7 @@ load_dotenv()
 
 from .database import create_db_and_tables, get_session
 from .models import Material, Stock, Project
-from .api import materials, stock, projects, purchases, invoices, companies, clients
+from .api import materials, stock, projects, purchases, invoices, companies, clients, database_admin
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ app.include_router(purchases.router)
 app.include_router(invoices.router)
 app.include_router(companies.router)
 app.include_router(clients.router)
+app.include_router(database_admin.router)
 
 
 # Get the path to the frontend dist directory
