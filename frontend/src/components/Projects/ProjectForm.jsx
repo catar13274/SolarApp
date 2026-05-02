@@ -14,6 +14,9 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
       name: '',
       client_name: '',
       client_contact: '',
+      client_tax_id: '',
+      client_registration: '',
+      client_billing_address: '',
       location: '',
       capacity_kw: 0,
       status: 'planned',
@@ -98,6 +101,9 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
     if (!data.end_date || data.end_date === '') data.end_date = null
     if (!data.location || data.location === '') data.location = null
     if (!data.client_contact || data.client_contact === '') data.client_contact = null
+    if (!data.client_tax_id || data.client_tax_id === '') data.client_tax_id = null
+    if (!data.client_registration || data.client_registration === '') data.client_registration = null
+    if (!data.client_billing_address || data.client_billing_address === '') data.client_billing_address = null
     if (!data.notes || data.notes === '') data.notes = null
     
     if (project) {
@@ -153,6 +159,33 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
           {...register('capacity_kw')}
           error={errors.capacity_kw?.message}
         />
+      </div>
+
+      <div className="border-t pt-4 mt-2">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Date facturare client</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="CUI / CIF"
+            {...register('client_tax_id')}
+            error={errors.client_tax_id?.message}
+          />
+          <Input
+            label="Nr. Reg. Com."
+            {...register('client_registration')}
+            error={errors.client_registration?.message}
+          />
+        </div>
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Adresa de facturare
+          </label>
+          <textarea
+            {...register('client_billing_address')}
+            rows={2}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Strada, numar, localitate, judet"
+          />
+        </div>
       </div>
 
       <Select

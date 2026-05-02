@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Edit, Trash2, Download, FileText } from 'lucide-react'
+import { Plus, Edit, Trash2, Download, FileText, Receipt } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { projects } from '../services/api'
 import Card from '../components/Common/Card'
@@ -92,6 +92,31 @@ const ProjectsPage = () => {
       toast.dismiss()
       toast.error('Failed to generate PDF')
       console.error('PDF generation error:', error)
+    }
+  }
+
+  const handleExportInvoicePDF = async (project) => {
+    try {
+      toast.loading('Generating invoice...')
+      const response = await projects.exportInvoicePDF(project.id)
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = getFilenameFromResponse(
+        response,
+        `Factura_${project.name.replace(/ /g, '_')}.pdf`,
+      )
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      toast.dismiss()
+      toast.success('Invoice PDF downloaded')
+    } catch (error) {
+      toast.dismiss()
+      toast.error('Failed to generate invoice PDF')
+      console.error('Invoice PDF error:', error)
     }
   }
 
@@ -251,6 +276,13 @@ const ProjectsPage = () => {
                           title="Export Word"
                         >
                           <FileText className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleExportInvoicePDF(project)}
+                          className="text-amber-600 hover:text-amber-900"
+                          title="Generate invoice PDF"
+                        >
+                          <Receipt className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(project)}

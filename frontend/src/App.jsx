@@ -6,12 +6,16 @@ import StockPage from './pages/StockPage'
 import ProjectsPage from './pages/ProjectsPage'
 import InvoicesPage from './pages/InvoicesPage'
 import PurchaseDetailsPage from './pages/PurchaseDetailsPage'
+import CompaniesPage from './pages/CompaniesPage'
+import ClientsPage from './pages/ClientsPage'
 
 function App() {
   return (
     <Layout>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/companies" element={<CompaniesPage />} />
+        <Route path="/clients" element={<ClientsPage />} />
         <Route path="/materials" element={<MaterialsPage />} />
         <Route path="/stock" element={<StockPage />} />
         <Route path="/projects" element={<ProjectsPage />} />

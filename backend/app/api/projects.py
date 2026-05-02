@@ -1,5 +1,6 @@
 """Projects API endpoints."""
 
+import os
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
@@ -7,12 +8,38 @@ from sqlmodel import Session, select
 from datetime import datetime, date, timezone
 
 from ..database import get_session
-from ..models import Project, ProjectMaterial, Material, ProjectMaterialUpdate, MaterialUsed, ProjectUpdate
-from ..pdf_service import generate_commercial_offer_pdf, remove_diacritics
+from ..models import (
+    Client,
+    Project,
+    ProjectMaterial,
+    Material,
+    ProjectMaterialUpdate,
+    MaterialUsed,
+    ProjectUpdate,
+)
+from ..pdf_service import (
+    generate_commercial_offer_pdf,
+    generate_project_invoice_pdf,
+    remove_diacritics,
+)
 from ..word_service import generate_commercial_offer_word
 from ..stock_service import apply_stock_movement
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
+
+
+def _company_billing_from_env() -> dict:
+    """Billing identity for the issuing company (supplier), used on project invoices."""
+    return {
+        "legal_name": os.getenv("COMPANY_INVOICE_LEGAL_NAME", ""),
+        "tax_id": os.getenv("COMPANY_INVOICE_TAX_ID", ""),
+        "registration": os.getenv("COMPANY_INVOICE_REGISTRATION", ""),
+        "address": os.getenv("COMPANY_INVOICE_ADDRESS", ""),
+        "bank_name": os.getenv("COMPANY_INVOICE_BANK_NAME", ""),
+        "iban": os.getenv("COMPANY_INVOICE_IBAN", ""),
+        "phone": os.getenv("COMPANY_INVOICE_PHONE", ""),
+        "email": os.getenv("COMPANY_INVOICE_EMAIL", ""),
+    }
 
 
 def parse_date_string(date_str: Optional[str], field_name: str) -> Optional[date]:
@@ -95,18 +122,34 @@ def get_project(project_id: int, session: Session = Depends(get_session)):
     
     project_dict = project.model_dump()
     project_dict["materials"] = materials_list
-    
+    if project.client_id:
+        cl = session.get(Client, project.client_id)
+        if cl:
+            project_dict["linked_client"] = cl.model_dump()
+
     return project_dict
+
+
+def _validate_client_id(session: Session, client_id: Optional[int]) -> None:
+    if client_id is None:
+        return
+    if not session.get(Client, client_id):
+        raise HTTPException(status_code=400, detail="Client not found")
 
 
 @router.post("/", response_model=Project)
 def create_project(project_data: ProjectUpdate, session: Session = Depends(get_session)):
     """Create a new project."""
+    _validate_client_id(session, project_data.client_id)
     # Create project with date conversion
     project = Project(
         name=project_data.name,
+        client_id=project_data.client_id,
         client_name=project_data.client_name,
         client_contact=project_data.client_contact,
+        client_tax_id=project_data.client_tax_id,
+        client_registration=project_data.client_registration,
+        client_billing_address=project_data.client_billing_address,
         location=project_data.location,
         capacity_kw=project_data.capacity_kw,
         status=project_data.status,
@@ -144,9 +187,14 @@ def update_project(
         raise HTTPException(status_code=404, detail="Project not found")
     
     # Update fields
+    _validate_client_id(session, project_update.client_id)
     project.name = project_update.name
+    project.client_id = project_update.client_id
     project.client_name = project_update.client_name
     project.client_contact = project_update.client_contact
+    project.client_tax_id = project_update.client_tax_id
+    project.client_registration = project_update.client_registration
+    project.client_billing_address = project_update.client_billing_address
     project.location = project_update.location
     project.capacity_kw = project_update.capacity_kw
     project.status = project_update.status
@@ -336,6 +384,7 @@ def export_project_pdf(project_id: int, session: Session = Depends(get_session))
                 "material_id": material.id,
                 "material_name": material.name,
                 "material_sku": material.sku,
+                "material_unit": material.unit,
                 "quantity_planned": pm.quantity_planned,
                 "quantity_used": pm.quantity_used,
                 "unit_price": pm.unit_price,
@@ -387,6 +436,7 @@ def export_project_word(project_id: int, session: Session = Depends(get_session)
                 "material_id": material.id,
                 "material_name": material.name,
                 "material_sku": material.sku,
+                "material_unit": material.unit,
                 "quantity_planned": pm.quantity_planned,
                 "quantity_used": pm.quantity_used,
                 "unit_price": pm.unit_price,
@@ -413,3 +463,49 @@ def export_project_word(project_id: int, session: Session = Depends(get_session)
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate Word document: {str(e)}")
+
+
+@router.get("/{project_id}/export-invoice-pdf")
+def export_project_invoice_pdf(project_id: int, session: Session = Depends(get_session)):
+    """Export a sales invoice PDF with supplier and client billing details."""
+    project = session.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    session.refresh(project)
+
+    project_materials = session.exec(
+        select(ProjectMaterial).where(ProjectMaterial.project_id == project_id)
+    ).all()
+
+    materials_list = []
+    for pm in project_materials:
+        material = session.get(Material, pm.material_id)
+        if material:
+            materials_list.append({
+                "material_id": material.id,
+                "material_name": material.name,
+                "material_sku": material.sku,
+                "material_unit": material.unit,
+                "quantity_planned": pm.quantity_planned,
+                "quantity_used": pm.quantity_used,
+                "unit_price": pm.unit_price,
+                "total_cost": pm.quantity_planned * pm.unit_price,
+            })
+
+    project_data = project.model_dump()
+    company_billing = _company_billing_from_env()
+
+    try:
+        pdf_bytes = generate_project_invoice_pdf(project_data, materials_list, company_billing)
+        filename = (
+            f"Factura_{remove_diacritics(project.name.replace(' ', '_'))}_"
+            f"{datetime.now().strftime('%Y%m%d')}.pdf"
+        )
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate invoice PDF: {str(e)}")

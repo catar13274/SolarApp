@@ -6,6 +6,38 @@ from sqlmodel import Field, SQLModel
 from pydantic import BaseModel
 
 
+class Company(SQLModel, table=True):
+    """Commercial company whose inventory is tracked (stock ownership)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    code: str = Field(unique=True, index=True)  # Stored on Material.company (e.g. freevoltsrl.ro)
+    name: str  # Short display name
+    legal_name: Optional[str] = None
+    tax_id: Optional[str] = None
+    registration: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Client(SQLModel, table=True):
+    """Saved customer used when creating projects."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    contact: Optional[str] = None
+    tax_id: Optional[str] = None
+    registration: Optional[str] = None
+    billing_address: Optional[str] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Material(SQLModel, table=True):
     """Material model for tracking inventory items."""
     
@@ -52,8 +84,12 @@ class Project(SQLModel, table=True):
     
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
+    client_id: Optional[int] = Field(default=None, foreign_key="client.id")
     client_name: str
     client_contact: Optional[str] = None
+    client_tax_id: Optional[str] = None  # CUI / CIF
+    client_registration: Optional[str] = None  # Nr. Reg. Com.
+    client_billing_address: Optional[str] = None
     location: Optional[str] = None
     capacity_kw: Optional[float] = None  # System capacity in kW
     status: str = "planned"  # "planned", "in_progress", "completed", "cancelled"
@@ -170,6 +206,49 @@ class MaterialUsed(BaseModel):
     quantity: float
 
 
+class CompanyCreate(BaseModel):
+    code: str
+    name: str
+    legal_name: Optional[str] = None
+    tax_id: Optional[str] = None
+    registration: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CompanyUpdate(BaseModel):
+    name: Optional[str] = None
+    legal_name: Optional[str] = None
+    tax_id: Optional[str] = None
+    registration: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ClientCreate(BaseModel):
+    name: str
+    contact: Optional[str] = None
+    tax_id: Optional[str] = None
+    registration: Optional[str] = None
+    billing_address: Optional[str] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ClientUpdate(BaseModel):
+    name: Optional[str] = None
+    contact: Optional[str] = None
+    tax_id: Optional[str] = None
+    registration: Optional[str] = None
+    billing_address: Optional[str] = None
+    location: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class ProjectUpdate(BaseModel):
     """Model for updating projects with proper date handling.
     
@@ -177,8 +256,12 @@ class ProjectUpdate(BaseModel):
     For example: "2024-03-15" for March 15, 2024.
     """
     name: str
+    client_id: Optional[int] = None
     client_name: str
     client_contact: Optional[str] = None
+    client_tax_id: Optional[str] = None
+    client_registration: Optional[str] = None
+    client_billing_address: Optional[str] = None
     location: Optional[str] = None
     capacity_kw: Optional[float] = None
     status: str

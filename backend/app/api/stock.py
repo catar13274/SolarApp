@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
 from ..database import get_session
-from ..models import Stock, StockMovement, Material
+from ..models import Company, Stock, StockMovement, Material
+
+
+def _company_labels(session: Session) -> dict:
+    rows = session.exec(select(Company)).all()
+    return {r.code: r.name for r in rows}
 from ..stock_service import apply_stock_movement
 
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
@@ -15,12 +20,18 @@ router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
 def list_stock(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    session: Session = Depends(get_session)
+    company: Optional[str] = Query(None, description="Filter by material company code"),
+    session: Session = Depends(get_session),
 ):
     """List all stock with material information."""
-    query = select(Stock).offset(skip).limit(limit)
+    query = select(Stock).join(Material, Stock.material_id == Material.id)
+    if company:
+        query = query.where(Material.company == company)
+    query = query.offset(skip).limit(limit)
     stocks = session.exec(query).all()
-    
+
+    labels = _company_labels(session)
+
     result = []
     for stock in stocks:
         material = session.get(Material, stock.material_id)
@@ -30,6 +41,7 @@ def list_stock(
             stock_dict["material_sku"] = material.sku
             stock_dict["material_category"] = material.category
             stock_dict["material_company"] = material.company
+            stock_dict["material_company_display"] = labels.get(material.company, material.company)
             stock_dict["min_stock"] = material.min_stock
             stock_dict["is_low"] = stock.quantity < material.min_stock
             
@@ -50,10 +62,18 @@ def list_stock(
 
 
 @router.get("/low", response_model=List[dict])
-def get_low_stock(session: Session = Depends(get_session)):
+def get_low_stock(
+    company: Optional[str] = Query(None),
+    session: Session = Depends(get_session),
+):
     """Get items with stock below minimum threshold."""
-    stocks = session.exec(select(Stock)).all()
-    
+    q = select(Stock).join(Material, Stock.material_id == Material.id)
+    if company:
+        q = q.where(Material.company == company)
+    stocks = session.exec(q).all()
+
+    labels = _company_labels(session)
+
     result = []
     for stock in stocks:
         material = session.get(Material, stock.material_id)
@@ -63,6 +83,7 @@ def get_low_stock(session: Session = Depends(get_session)):
             stock_dict["material_sku"] = material.sku
             stock_dict["material_category"] = material.category
             stock_dict["material_company"] = material.company
+            stock_dict["material_company_display"] = labels.get(material.company, material.company)
             stock_dict["min_stock"] = material.min_stock
             stock_dict["shortage"] = material.min_stock - stock.quantity
             
@@ -88,17 +109,22 @@ def list_movements(
     limit: int = Query(100, ge=1, le=100),
     material_id: Optional[int] = Query(None),
     movement_type: Optional[str] = Query(None),
-    session: Session = Depends(get_session)
+    company: Optional[str] = Query(None),
+    session: Session = Depends(get_session),
 ):
     """List stock movements with filters."""
     query = select(StockMovement)
-    
+    if company:
+        query = query.join(Material, StockMovement.material_id == Material.id).where(
+            Material.company == company
+        )
+
     if material_id:
         query = query.where(StockMovement.material_id == material_id)
-    
+
     if movement_type:
         query = query.where(StockMovement.movement_type == movement_type)
-    
+
     query = query.order_by(StockMovement.created_at.desc()).offset(skip).limit(limit)
     movements = session.exec(query).all()
     

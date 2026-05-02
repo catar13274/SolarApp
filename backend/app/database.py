@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, create_engine, Session, select
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 
@@ -58,6 +58,9 @@ def create_db_and_tables():
     """Create all database tables."""
     SQLModel.metadata.create_all(engine)
     _ensure_material_company_column()
+    _ensure_project_billing_columns()
+    _ensure_project_client_id_column()
+    _seed_default_companies()
 
 
 def _ensure_material_company_column():
@@ -75,6 +78,64 @@ def _ensure_material_company_column():
             conn.exec_driver_sql(
                 "UPDATE material SET company='freevoltsrl.ro' WHERE company IS NULL OR company=''"
             )
+            conn.commit()
+
+
+def _ensure_project_client_id_column():
+    """Add optional client link on project for SQLite legacy DBs."""
+    if "sqlite" not in DATABASE_URL:
+        return
+
+    with engine.connect() as conn:
+        columns = conn.exec_driver_sql("PRAGMA table_info(project)").fetchall()
+        column_names = {col[1] for col in columns}
+        if "client_id" not in column_names:
+            conn.exec_driver_sql("ALTER TABLE project ADD COLUMN client_id INTEGER")
+            conn.commit()
+
+
+def _seed_default_companies():
+    """Insert starter companies when the table is empty."""
+    from .models import Company
+
+    with Session(engine) as session:
+        if session.exec(select(Company)).first():
+            return
+        session.add(
+            Company(
+                code="freevoltsrl.ro",
+                name="Freevolt SRL",
+                legal_name="Freevolt SRL",
+            )
+        )
+        session.add(
+            Company(
+                code="energoteamconect.ro",
+                name="Energoteam Conect",
+                legal_name="Energoteam Conect",
+            )
+        )
+        session.commit()
+
+
+def _ensure_project_billing_columns():
+    """Backfill schema for older databases without client billing fields on project."""
+    if "sqlite" not in DATABASE_URL:
+        return
+
+    with engine.connect() as conn:
+        columns = conn.exec_driver_sql("PRAGMA table_info(project)").fetchall()
+        column_names = {col[1] for col in columns}
+        alters = []
+        if "client_tax_id" not in column_names:
+            alters.append("ALTER TABLE project ADD COLUMN client_tax_id VARCHAR")
+        if "client_registration" not in column_names:
+            alters.append("ALTER TABLE project ADD COLUMN client_registration VARCHAR")
+        if "client_billing_address" not in column_names:
+            alters.append("ALTER TABLE project ADD COLUMN client_billing_address VARCHAR")
+        for stmt in alters:
+            conn.exec_driver_sql(stmt)
+        if alters:
             conn.commit()
 
 

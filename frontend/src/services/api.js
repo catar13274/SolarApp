@@ -44,10 +44,27 @@ export const materials = {
 // Stock API
 export const stock = {
   getAll: (params) => api.get('/api/v1/stock/', { params }),
-  getLowStock: () => api.get('/api/v1/stock/low'),
+  getLowStock: (params) => api.get('/api/v1/stock/low', { params }),
   getByMaterial: (materialId) => api.get(`/api/v1/stock/${materialId}`),
   getMovements: (params) => api.get('/api/v1/stock/movements/', { params }),
   createMovement: (data) => api.post('/api/v1/stock/movement', data),
+}
+
+// Companies & clients (stock ownership & CRM-style contacts)
+export const companies = {
+  getAll: () => api.get('/api/v1/companies/'),
+  getById: (id) => api.get(`/api/v1/companies/${id}`),
+  create: (data) => api.post('/api/v1/companies/', data),
+  update: (id, data) => api.put(`/api/v1/companies/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/companies/${id}`),
+}
+
+export const clients = {
+  getAll: (params) => api.get('/api/v1/clients/', { params }),
+  getById: (id) => api.get(`/api/v1/clients/${id}`),
+  create: (data) => api.post('/api/v1/clients/', data),
+  update: (id, data) => api.put(`/api/v1/clients/${id}`, data),
+  delete: (id) => api.delete(`/api/v1/clients/${id}`),
 }
 
 // Projects API
@@ -63,6 +80,8 @@ export const projects = {
   useMaterials: (projectId, data) => api.post(`/api/v1/projects/${projectId}/use-materials`, data),
   exportPDF: (projectId) => api.get(`/api/v1/projects/${projectId}/export-pdf`, { responseType: 'blob' }),
   exportWord: (projectId) => api.get(`/api/v1/projects/${projectId}/export-word`, { responseType: 'blob' }),
+  exportInvoicePDF: (projectId) =>
+    api.get(`/api/v1/projects/${projectId}/export-invoice-pdf`, { responseType: 'blob' }),
 }
 
 // Purchases API

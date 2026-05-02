@@ -5,12 +5,16 @@ import {
   Warehouse, 
   Briefcase, 
   FileText,
-  Sun
+  Sun,
+  Building2,
+  Users,
 } from 'lucide-react'
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/companies', icon: Building2, label: 'Firme' },
+    { to: '/clients', icon: Users, label: 'Clienti' },
     { to: '/materials', icon: Package, label: 'Materials' },
     { to: '/stock', icon: Warehouse, label: 'Stock' },
     { to: '/projects', icon: Briefcase, label: 'Projects' },

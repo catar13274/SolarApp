@@ -456,3 +456,267 @@ def generate_commercial_offer_pdf(project_data, materials_list=None):
     buffer.close()
     
     return pdf
+
+
+INVOICE_VAT_RATE = 0.21
+
+
+def _invoice_xml_escape(text) -> str:
+    if text is None:
+        return ""
+    s = remove_diacritics(str(text))
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def _invoice_block_paragraph(title: str, rows: list[tuple[str, str]], normal_style) -> Paragraph:
+    parts = [f"<b>{_invoice_xml_escape(title)}</b>"]
+    for label, value in rows:
+        val = value if (value is not None and str(value).strip()) else "-"
+        parts.append(f"<b>{_invoice_xml_escape(label)}</b> {_invoice_xml_escape(val)}")
+    inner = "<br/>".join(parts)
+    return Paragraph(inner, normal_style)
+
+
+def generate_project_invoice_pdf(project_data, materials_list=None, company_billing=None):
+    """Generate a sales invoice PDF with supplier and client billing blocks."""
+    materials_list = materials_list or []
+    company_billing = company_billing or {}
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+    )
+    elements = []
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "InvoiceTitle",
+        parent=styles["Heading1"],
+        fontSize=22,
+        textColor=colors.HexColor("#1e40af"),
+        spaceAfter=14,
+        alignment=TA_CENTER,
+    )
+    heading_style = ParagraphStyle(
+        "InvoiceHeading",
+        parent=styles["Heading2"],
+        fontSize=12,
+        textColor=colors.HexColor("#1e40af"),
+        spaceAfter=8,
+        spaceBefore=10,
+    )
+    normal_style = ParagraphStyle(
+        "InvoiceNormal",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=11,
+        alignment=TA_LEFT,
+    )
+
+    elements.append(Paragraph(remove_diacritics("FACTURA"), title_style))
+
+    issue_date = datetime.now().strftime("%d.%m.%Y")
+    inv_no = f"FAC-P{project_data.get('id', 'N/A')}-{datetime.now().strftime('%Y%m%d')}"
+    meta_rows = [
+        [remove_diacritics("Nr. factura:"), inv_no],
+        [remove_diacritics("Data emiterii:"), issue_date],
+        [remove_diacritics("Referinta proiect:"), project_data.get("name", "-")],
+    ]
+    meta_table = Table(meta_rows, colWidths=[45 * mm, 115 * mm])
+    meta_table.setStyle(
+        TableStyle(
+            [
+                ("FONT", (0, 0), (0, -1), "Helvetica-Bold", 9),
+                ("FONT", (1, 0), (1, -1), "Helvetica", 9),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
+    elements.append(meta_table)
+    elements.append(Spacer(1, 6 * mm))
+
+    elements.append(Paragraph(remove_diacritics("Date de facturare"), heading_style))
+
+    company_rows = [
+        ("Denumire:", company_billing.get("legal_name")),
+        ("CUI / CIF:", company_billing.get("tax_id")),
+        ("Nr. Reg. Com.:", company_billing.get("registration")),
+        ("Adresa:", company_billing.get("address")),
+        ("Banca:", company_billing.get("bank_name")),
+        ("IBAN:", company_billing.get("iban")),
+        ("Telefon:", company_billing.get("phone")),
+        ("Email:", company_billing.get("email")),
+    ]
+    client_rows = [
+        ("Denumire:", project_data.get("client_name")),
+        ("CUI / CIF:", project_data.get("client_tax_id")),
+        ("Nr. Reg. Com.:", project_data.get("client_registration")),
+        ("Adresa facturare:", project_data.get("client_billing_address")),
+        ("Contact:", project_data.get("client_contact")),
+        ("Locatie montaj:", project_data.get("location")),
+    ]
+
+    left_para = _invoice_block_paragraph("Furnizor", company_rows, normal_style)
+    right_para = _invoice_block_paragraph("Cumparator", client_rows, normal_style)
+    billing_table = Table([[left_para, right_para]], colWidths=[82 * mm, 82 * mm])
+    billing_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    elements.append(billing_table)
+    elements.append(Spacer(1, 8 * mm))
+
+    elements.append(Paragraph(remove_diacritics("Detaliere (valori fara TVA)"), heading_style))
+
+    table_header = [
+        wrap_text(remove_diacritics("Nr."), font_size=9),
+        wrap_text(remove_diacritics("Denumire"), font_size=9),
+        wrap_text(remove_diacritics("UM"), font_size=9),
+        wrap_text(remove_diacritics("Cant."), font_size=9),
+        wrap_text(remove_diacritics("Pret unitar"), font_size=9),
+        wrap_text(remove_diacritics("Valoare"), font_size=9),
+    ]
+    lines_data = [table_header]
+
+    net_total = 0.0
+    idx = 0
+    for material in materials_list:
+        qty = float(material.get("quantity_planned") or 0)
+        price = float(material.get("unit_price") or 0)
+        line_net = qty * price
+        net_total += line_net
+        idx += 1
+        um = material.get("material_unit") or "buc"
+        lines_data.append(
+            [
+                str(idx),
+                wrap_text(_invoice_xml_escape(material.get("material_name", "-")), font_size=8),
+                wrap_text(_invoice_xml_escape(um), font_size=8),
+                f"{qty:.2f}",
+                f"{price:.2f}",
+                f"{line_net:.2f}",
+            ]
+        )
+
+    labor = float(project_data.get("labor_cost_estimated") or 0)
+    transport = float(project_data.get("transport_cost_estimated") or 0)
+    other = float(project_data.get("other_costs_estimated") or 0)
+
+    for label, amount in (
+        (remove_diacritics("Manopera"), labor),
+        (remove_diacritics("Transport"), transport),
+        (remove_diacritics("Alte costuri"), other),
+    ):
+        if amount > 0:
+            idx += 1
+            net_total += amount
+            lines_data.append(
+                [
+                    str(idx),
+                    wrap_text(label, font_size=8),
+                    wrap_text(remove_diacritics("serviciu"), font_size=8),
+                    "1.00",
+                    f"{amount:.2f}",
+                    f"{amount:.2f}",
+                ]
+            )
+
+    if not materials_list and labor == 0 and transport == 0 and other == 0:
+        est = project_data.get("estimated_cost")
+        if est:
+            net_total = float(est)
+            lines_data.append(
+                [
+                    "1",
+                    wrap_text(remove_diacritics("Servicii / proiect (estimare)"), font_size=8),
+                    wrap_text(remove_diacritics("set"), font_size=8),
+                    "1.00",
+                    f"{net_total:.2f}",
+                    f"{net_total:.2f}",
+                ]
+            )
+
+    col_widths = [12 * mm, 62 * mm, 18 * mm, 22 * mm, 28 * mm, 28 * mm]
+    lines_table = Table(lines_data, colWidths=col_widths)
+    lines_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e40af")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("ALIGN", (0, 1), (0, -1), "CENTER"),
+                ("ALIGN", (3, 1), (-1, -1), "RIGHT"),
+                ("FONT", (0, 1), (-1, -1), "Helvetica", 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ]
+        )
+    )
+    elements.append(lines_table)
+    elements.append(Spacer(1, 6 * mm))
+
+    vat_amount = net_total * INVOICE_VAT_RATE
+    gross_total = net_total + vat_amount
+
+    totals_data = [
+        [remove_diacritics("Total fara TVA:"), f"{net_total:.2f} RON"],
+        [remove_diacritics("TVA (21%):"), f"{vat_amount:.2f} RON"],
+        [remove_diacritics("Total de plata:"), f"{gross_total:.2f} RON"],
+    ]
+    totals_table = Table(totals_data, colWidths=[120 * mm, 50 * mm])
+    totals_table.setStyle(
+        TableStyle(
+            [
+                ("FONT", (0, 0), (-1, -2), "Helvetica", 10),
+                ("FONT", (0, -1), (-1, -1), "Helvetica-Bold", 11),
+                ("ALIGN", (0, 0), (0, -1), "RIGHT"),
+                ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#dbeafe")),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ]
+        )
+    )
+    elements.append(totals_table)
+
+    if project_data.get("notes"):
+        elements.append(Spacer(1, 8 * mm))
+        elements.append(Paragraph(remove_diacritics("Observatii"), heading_style))
+        elements.append(
+            Paragraph(_invoice_xml_escape(project_data.get("notes")), normal_style)
+        )
+
+    elements.append(Spacer(1, 10 * mm))
+    footer_note = remove_diacritics(
+        "Document informational generat din aplicatie. Verificati conformitatea cu legislatia "
+        "fiscala in vigoare inainte de transmiterea catre client."
+    )
+    elements.append(Paragraph(f"<i>{footer_note}</i>", normal_style))
+
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
