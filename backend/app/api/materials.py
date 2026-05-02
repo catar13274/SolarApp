@@ -11,7 +11,12 @@ from openpyxl import Workbook, load_workbook
 from sqlmodel import Session, select
 
 from ..database import get_session
-from ..models import Material, Stock
+from ..models import Company, Material, Stock
+
+
+def _company_display_map(session: Session) -> dict:
+    rows = session.exec(select(Company)).all()
+    return {r.code: r.name for r in rows}
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
 TVA_RATE = 0.21
@@ -49,18 +54,21 @@ def list_materials(
     
     query = query.order_by(Material.name.asc()).offset(skip).limit(limit)
     materials = session.exec(query).all()
-    
+
+    labels = _company_display_map(session)
+
     # Enrich with stock information
     result = []
     for material in materials:
         stock = session.exec(
             select(Stock).where(Stock.material_id == material.id)
         ).first()
-        
+
         material_dict = material.model_dump()
         material_dict["current_stock"] = stock.quantity if stock else 0
+        material_dict["company_display_name"] = labels.get(material.company, material.company)
         result.append(material_dict)
-    
+
     return result
 
 
@@ -199,11 +207,17 @@ async def import_materials(
 
         sku = str(get_val("sku") or "").strip()
         name = str(get_val("name") or "").strip()
-        company = str(get_val("company") or "").strip() or "freevoltsrl.ro"
+        company = str(get_val("company") or "").strip().lower() or "freevoltsrl.ro"
         unit = str(get_val("unit") or "").strip() or "buc"
 
         if not sku or not name:
             skipped += 1
+            continue
+
+        if not session.exec(select(Company).where(Company.code == company)).first():
+            errors.append(
+                f"Row {row_num}: firma necunoscuta ({company!r}). Adaugati firma in sectiunea Firme."
+            )
             continue
 
         try:
@@ -224,6 +238,13 @@ async def import_materials(
             stock = session.exec(select(Stock).where(Stock.material_id == existing.id)).first()
             if stock:
                 stock.quantity = quantity
+                session.add(stock)
+            else:
+                stock = Stock(
+                    material_id=existing.id,
+                    quantity=quantity,
+                    location="Main Warehouse",
+                )
                 session.add(stock)
             updated += 1
         else:
@@ -270,13 +291,21 @@ def get_material(material_id: int, session: Session = Depends(get_session)):
     material_dict = material.model_dump()
     material_dict["current_stock"] = stock.quantity if stock else 0
     material_dict["stock_location"] = stock.location if stock else "Main Warehouse"
-    
+    labels = _company_display_map(session)
+    material_dict["company_display_name"] = labels.get(material.company, material.company)
+
     return material_dict
 
 
 @router.post("/", response_model=Material)
 def create_material(material: Material, session: Session = Depends(get_session)):
     """Create a new material."""
+    if not session.exec(select(Company).where(Company.code == material.company)).first():
+        raise HTTPException(
+            status_code=400,
+            detail="Cod firma necunoscut. Adauga firma in sectiunea Firme inainte de a crea materiale.",
+        )
+
     # Check if SKU already exists
     existing = session.exec(
         select(Material).where(Material.sku == material.sku)
@@ -322,6 +351,12 @@ def update_material(
         ).first()
         if existing:
             raise HTTPException(status_code=400, detail="SKU already exists")
+
+    if not session.exec(select(Company).where(Company.code == material_update.company)).first():
+        raise HTTPException(
+            status_code=400,
+            detail="Cod firma necunoscut. Adauga firma in sectiunea Firme inainte de a actualiza materiale.",
+        )
     
     # Update fields
     material.name = material_update.name
