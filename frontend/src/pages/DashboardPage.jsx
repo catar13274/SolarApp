@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { dashboard, stock, databaseAdmin } from '../services/api'
+import { useCompanyScope } from '../hooks/useCompanyScope'
 import Card from '../components/Common/Card'
 import LoadingSpinner from '../components/Common/LoadingSpinner'
 import Badge from '../components/Common/Badge'
@@ -21,17 +22,18 @@ import Input from '../components/Common/Input'
 
 const DashboardPage = () => {
   const queryClient = useQueryClient()
+  const [tenantCode] = useCompanyScope()
   const [backupToken, setBackupToken] = useState('')
   const restoreInputRef = useRef(null)
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: () => dashboard.getStats().then(res => res.data),
+    queryKey: ['dashboard-stats', tenantCode],
+    queryFn: () => dashboard.getStats().then((res) => res.data),
   })
 
   const { data: movements, isLoading: movementsLoading } = useQuery({
-    queryKey: ['recent-movements'],
-    queryFn: () => stock.getMovements({ limit: 10 }).then(res => res.data),
+    queryKey: ['recent-movements', tenantCode],
+    queryFn: () => stock.getMovements({ limit: 10 }).then((res) => res.data),
   })
 
   if (statsLoading) {

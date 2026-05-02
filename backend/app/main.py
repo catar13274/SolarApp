@@ -14,7 +14,8 @@ from sqlmodel import Session, select
 # Load environment variables from .env file
 load_dotenv()
 
-from .database import create_db_and_tables, get_session
+from .database import create_db_and_tables, ensure_registry_seed, provision_missing_tenant_files
+from .deps import get_session
 from .models import Material, Stock, Project
 from .api import materials, stock, projects, purchases, invoices, companies, clients, database_admin
 
@@ -65,7 +66,9 @@ if frontend_dist.exists() and frontend_dist.is_dir():
 
 @app.on_event("startup")
 def on_startup():
-    """Initialize database on startup."""
+    """Initialize registry, legacy DB, and per-tenant files (when enabled)."""
+    ensure_registry_seed()
+    provision_missing_tenant_files()
     create_db_and_tables()
 
 

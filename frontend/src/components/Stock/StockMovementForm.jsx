@@ -7,9 +7,9 @@ import Button from '../Common/Button'
 import Input from '../Common/Input'
 import Select from '../Common/Select'
 
-const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
+const StockMovementForm = ({ onSuccess, onCancel, tenantCode = '' }) => {
   const queryClient = useQueryClient()
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     mode: 'onChange',
     defaultValues: {
       material_id: '',
@@ -20,9 +20,8 @@ const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
   })
 
   const { data: materialsData } = useQuery({
-    queryKey: ['materials', companyFilter],
-    queryFn: () =>
-      materials.getAll({ company: companyFilter || undefined }).then((res) => res.data),
+    queryKey: ['materials', tenantCode],
+    queryFn: () => materials.getAll({}).then((res) => res.data),
   })
 
   const sortedMaterials = useMemo(
@@ -45,16 +44,15 @@ const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
   })
 
   const onSubmit = (data) => {
-    // Validate and convert material_id
     const materialId = parseInt(data.material_id)
     if (isNaN(materialId) || materialId <= 0) {
       toast.error('Please select a valid material')
       return
     }
-    
+
     data.material_id = materialId
     data.quantity = parseFloat(data.quantity)
-    
+
     createMutation.mutate(data)
   }
 
@@ -67,9 +65,14 @@ const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      {companyFilter && sortedMaterials.length === 0 && (
+      {!tenantCode && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          Nu exista materiale pentru firma selectata. Alegeti alta firma sus in pagina sau adaugati materiale pentru aceasta firma.
+          Selectați firma activă în bara de sus înainte de a înregistra mișcări de stoc.
+        </p>
+      )}
+      {tenantCode && sortedMaterials.length === 0 && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Nu există materiale în baza firmei curente. Adăugați materiale sau schimbați firma activă.
         </p>
       )}
       <Select
@@ -77,14 +80,14 @@ const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
         required
         options={[
           { value: '', label: 'Select a material' },
-          ...sortedMaterials.map(m => ({
+          ...sortedMaterials.map((m) => ({
             value: m.id.toString(),
-            label: `${m.name} (${m.sku}) — ${m.company_display_name || m.company}`
-          }))
+            label: `${m.name} (${m.sku})`,
+          })),
         ]}
-        {...register('material_id', { 
+        {...register('material_id', {
           required: 'Material is required',
-          validate: (value) => value !== '' || 'Please select a material'
+          validate: (value) => value !== '' || 'Please select a material',
         })}
         error={errors.material_id?.message}
       />
@@ -102,9 +105,9 @@ const StockMovementForm = ({ onSuccess, onCancel, companyFilter = null }) => {
         type="number"
         step="0.01"
         required
-        {...register('quantity', { 
+        {...register('quantity', {
           required: 'Quantity is required',
-          min: { value: 0.01, message: 'Quantity must be greater than 0' }
+          min: { value: 0.01, message: 'Quantity must be greater than 0' },
         })}
         error={errors.quantity?.message}
       />

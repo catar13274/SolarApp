@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from datetime import datetime
 from pydantic import BaseModel
 
-from ..database import get_session
+from ..deps import get_session
 from ..models import Purchase, PurchaseItem, Material, PurchaseCreate, PurchaseItemUpdate
 from ..stock_service import apply_stock_movement
 

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Users } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { clients } from '../services/api'
+import { useCompanyScope } from '../hooks/useCompanyScope'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import LoadingSpinner from '../components/Common/LoadingSpinner'
@@ -21,13 +22,14 @@ const emptyForm = {
 }
 
 const ClientsPage = () => {
+  const [tenantCode] = useCompanyScope()
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(emptyForm)
   const queryClient = useQueryClient()
 
   const { data: list, isLoading } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients', tenantCode],
     queryFn: () => clients.getAll({ limit: 200 }).then((res) => res.data),
   })
 

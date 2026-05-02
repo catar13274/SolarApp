@@ -17,7 +17,7 @@ const MaterialsPage = () => {
   const [editingMaterial, setEditingMaterial] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [companyFilter, setCompanyFilter] = useCompanyScope()
+  const [tenantCode] = useCompanyScope()
   const importInputRef = useRef(null)
   
   const queryClient = useQueryClient()
@@ -28,12 +28,14 @@ const MaterialsPage = () => {
   })
 
   const { data: materialsData, isLoading } = useQuery({
-    queryKey: ['materials', searchTerm, categoryFilter, companyFilter],
-    queryFn: () => materials.getAll({ 
-      search: searchTerm || undefined,
-      category: categoryFilter || undefined,
-      company: companyFilter || undefined,
-    }).then(res => res.data),
+    queryKey: ['materials', searchTerm, categoryFilter, tenantCode],
+    queryFn: () =>
+      materials
+        .getAll({
+          search: searchTerm || undefined,
+          category: categoryFilter || undefined,
+        })
+        .then((res) => res.data),
   })
 
   const deleteMutation = useMutation({
@@ -48,7 +50,7 @@ const MaterialsPage = () => {
   })
 
   const exportMutation = useMutation({
-    mutationFn: () => materials.exportExcel({ company: companyFilter || undefined }),
+    mutationFn: () => materials.exportExcel({}),
     onSuccess: (response) => {
       const blob = new Blob([response.data], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -138,6 +140,15 @@ const MaterialsPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Materials</h1>
           <p className="mt-1 text-gray-600">
             Manage your solar panel components and materials
+            {tenantCode && companiesList?.length ? (
+              <span className="block text-sm text-primary-700 mt-1">
+                Baza curentă:{' '}
+                <strong>
+                  {companiesList.find((c) => c.code === tenantCode)?.name || tenantCode}
+                </strong>{' '}
+                (selectată în bara de sus)
+              </span>
+            ) : null}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -195,19 +206,6 @@ const MaterialsPage = () => {
               </option>
             ))}
           </select>
-          <select
-            value={companyFilter}
-            onChange={(e) => setCompanyFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[200px]"
-            title="Filtreaza materialele dupa firma (aceasi selectie ca la Stoc)"
-          >
-            <option value="">Toate firmele</option>
-            {(companiesList || []).map((c) => (
-              <option key={c.id} value={c.code}>
-                {c.name}
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* Materials Table */}
@@ -223,9 +221,6 @@ const MaterialsPage = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Company
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
@@ -260,11 +255,6 @@ const MaterialsPage = () => {
                           </div>
                         )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant="info">
-                        {material.company_display_name || material.company}
-                      </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="default">

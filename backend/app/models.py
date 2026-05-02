@@ -2,16 +2,20 @@
 
 from datetime import date, datetime
 from typing import Optional, List
+from pydantic import BaseModel, ConfigDict
 from sqlmodel import Field, SQLModel
-from pydantic import BaseModel
+
+from .tenant_metadata import TENANT_METADATA
 
 
-class Company(SQLModel, table=True):
-    """Commercial company whose inventory is tracked (stock ownership)."""
+class Company(BaseModel):
+    """Registered firm (API shape; stored in central registry when multitenant)."""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    code: str = Field(unique=True, index=True)  # Stored on Material.company (e.g. freevoltsrl.ro)
-    name: str  # Short display name
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    code: str
+    name: str
     legal_name: Optional[str] = None
     tax_id: Optional[str] = None
     registration: Optional[str] = None
@@ -19,11 +23,11 @@ class Company(SQLModel, table=True):
     phone: Optional[str] = None
     email: Optional[str] = None
     notes: Optional[str] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime
+    updated_at: datetime
 
 
-class Client(SQLModel, table=True):
+class Client(SQLModel, table=True, metadata=TENANT_METADATA):
     """Saved customer used when creating projects."""
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -38,25 +42,24 @@ class Client(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class Material(SQLModel, table=True):
-    """Material model for tracking inventory items."""
-    
+class Material(SQLModel, table=True, metadata=TENANT_METADATA):
+    """Material model for tracking inventory items (scoped by tenant DB when multitenant)."""
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     sku: str = Field(unique=True, index=True)
     description: Optional[str] = None
-    company: str = "freevoltsrl.ro"
     category: str  # "panel", "inverter", "battery", "cable", "mounting", "other"
-    unit: str = "buc"  # Unit of measurement
+    unit: str = "buc"
     unit_price: float = 0.0
     min_stock: int = 0
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class Stock(SQLModel, table=True):
+class Stock(SQLModel, table=True, metadata=TENANT_METADATA):
     """Stock model for tracking current inventory levels."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     material_id: int = Field(foreign_key="material.id")
     quantity: float = 0.0
@@ -64,40 +67,39 @@ class Stock(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class StockMovement(SQLModel, table=True):
+class StockMovement(SQLModel, table=True, metadata=TENANT_METADATA):
     """Stock movement model for tracking inventory changes."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     material_id: int = Field(foreign_key="material.id")
     movement_type: str  # "in", "out", "adjustment", "transfer"
     quantity: float
-    unit_price: Optional[float] = None  # Acquisition price per unit (for "in" movements)
-    reference_type: Optional[str] = None  # "purchase", "project", "manual"
+    unit_price: Optional[float] = None
+    reference_type: Optional[str] = None
     reference_id: Optional[int] = None
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: Optional[str] = None
 
 
-class Project(SQLModel, table=True):
+class Project(SQLModel, table=True, metadata=TENANT_METADATA):
     """Project model for tracking solar panel installations."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
     client_id: Optional[int] = Field(default=None, foreign_key="client.id")
     client_name: str
     client_contact: Optional[str] = None
-    client_tax_id: Optional[str] = None  # CUI / CIF
-    client_registration: Optional[str] = None  # Nr. Reg. Com.
+    client_tax_id: Optional[str] = None
+    client_registration: Optional[str] = None
     client_billing_address: Optional[str] = None
     location: Optional[str] = None
-    capacity_kw: Optional[float] = None  # System capacity in kW
-    status: str = "planned"  # "planned", "in_progress", "completed", "cancelled"
+    capacity_kw: Optional[float] = None
+    status: str = "planned"
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     estimated_cost: Optional[float] = None
     actual_cost: Optional[float] = None
-    # Cost breakdown fields
     labor_cost_estimated: Optional[float] = None
     labor_cost_actual: Optional[float] = None
     transport_cost_estimated: Optional[float] = None
@@ -109,9 +111,9 @@ class Project(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class ProjectMaterial(SQLModel, table=True):
+class ProjectMaterial(SQLModel, table=True, metadata=TENANT_METADATA):
     """Many-to-many relationship between projects and materials."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id")
     material_id: int = Field(foreign_key="material.id")
@@ -120,9 +122,9 @@ class ProjectMaterial(SQLModel, table=True):
     unit_price: float = 0.0
 
 
-class Purchase(SQLModel, table=True):
+class Purchase(SQLModel, table=True, metadata=TENANT_METADATA):
     """Purchase model for tracking material purchases."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     supplier: str
     purchase_date: date
@@ -133,9 +135,9 @@ class Purchase(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class PurchaseItem(SQLModel, table=True):
+class PurchaseItem(SQLModel, table=True, metadata=TENANT_METADATA):
     """Purchase items model for individual items in a purchase."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     purchase_id: int = Field(foreign_key="purchase.id")
     material_id: Optional[int] = Field(foreign_key="material.id")
@@ -146,9 +148,9 @@ class PurchaseItem(SQLModel, table=True):
     total_price: float
 
 
-class Invoice(SQLModel, table=True):
+class Invoice(SQLModel, table=True, metadata=TENANT_METADATA):
     """Invoice model for uploaded invoices."""
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     invoice_number: str = Field(unique=True, index=True)
     supplier: str
@@ -156,15 +158,17 @@ class Invoice(SQLModel, table=True):
     total_amount: float
     currency: str = "RON"
     xml_file_path: Optional[str] = None
-    file_format: Optional[str] = None  # File extension: xml, pdf, doc, xls, txt
+    file_format: Optional[str] = None
     purchase_id: Optional[int] = Field(foreign_key="purchase.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 # Request/Response Models (Pydantic models for API validation)
 
+
 class PurchaseItemCreate(BaseModel):
     """Model for creating purchase items."""
+
     material_id: Optional[int] = None
     description: str
     sku: Optional[str] = None
@@ -175,6 +179,7 @@ class PurchaseItemCreate(BaseModel):
 
 class PurchaseItemUpdate(BaseModel):
     """Model for updating purchase items."""
+
     description: Optional[str] = None
     sku: Optional[str] = None
     quantity: Optional[float] = None
@@ -184,6 +189,7 @@ class PurchaseItemUpdate(BaseModel):
 
 class PurchaseCreate(BaseModel):
     """Model for creating purchases."""
+
     supplier: str
     purchase_date: date
     invoice_number: Optional[str] = None
@@ -195,6 +201,7 @@ class PurchaseCreate(BaseModel):
 
 class ProjectMaterialUpdate(BaseModel):
     """Model for updating project materials."""
+
     quantity_planned: Optional[float] = None
     quantity_used: Optional[float] = None
     unit_price: Optional[float] = None
@@ -202,6 +209,7 @@ class ProjectMaterialUpdate(BaseModel):
 
 class MaterialUsed(BaseModel):
     """Model for materials used in a project."""
+
     material_id: int
     quantity: float
 
@@ -250,11 +258,8 @@ class ClientUpdate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    """Model for updating projects with proper date handling.
-    
-    Dates should be provided as ISO 8601 strings (YYYY-MM-DD format).
-    For example: "2024-03-15" for March 15, 2024.
-    """
+    """Model for updating projects with proper date handling."""
+
     name: str
     client_id: Optional[int] = None
     client_name: str
@@ -265,8 +270,8 @@ class ProjectUpdate(BaseModel):
     location: Optional[str] = None
     capacity_kw: Optional[float] = None
     status: str
-    start_date: Optional[str] = None  # ISO 8601 date string (YYYY-MM-DD)
-    end_date: Optional[str] = None    # ISO 8601 date string (YYYY-MM-DD)
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
     estimated_cost: Optional[float] = None
     actual_cost: Optional[float] = None
     labor_cost_estimated: Optional[float] = None

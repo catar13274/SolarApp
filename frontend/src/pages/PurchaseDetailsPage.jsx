@@ -387,7 +387,8 @@ const PurchaseDetailsPage = () => {
                 <option value="">-- Select a material --</option>
                 {availableMaterials.map((material) => (
                   <option key={material.id} value={material.id}>
-                    {material.name} ({material.sku}) - {material.company === 'energoteamconect.ro' ? 'Energoteam' : 'Freevolt'}
+                    {material.name} ({material.sku})
+                    {material.company_display_name ? ` — ${material.company_display_name}` : ''}
                   </option>
                 ))}
               </Select>

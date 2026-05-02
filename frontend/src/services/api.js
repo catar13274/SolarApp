@@ -26,6 +26,18 @@ const api = axios.create({
   },
 })
 
+// Multitenant: same code as firma selector (useCompanyScope) — server routes data to the right SQLite file.
+const TENANT_HEADER = 'X-Solarapp-Tenant'
+const TENANT_STORAGE_KEY = 'solarapp_selected_company_code'
+
+api.interceptors.request.use((config) => {
+  const code = typeof localStorage !== 'undefined' ? localStorage.getItem(TENANT_STORAGE_KEY) : ''
+  if (code && config.headers) {
+    config.headers[TENANT_HEADER] = code
+  }
+  return config
+})
+
 // Materials API
 export const materials = {
   getAll: (params) => api.get('/api/v1/materials/', { params }),
@@ -121,6 +133,7 @@ export const dashboard = {
 
 // SQLite backup / restore (requires SOLARAPP_BACKUP_TOKEN on server + same token in X-Solarapp-Backup-Token header)
 export const databaseAdmin = {
+  /** In multitenant mode the tenant header is added by the axios interceptor (selected firma). */
   downloadBackup: (token) =>
     api.get('/api/v1/admin/database/backup', {
       headers: { 'X-Solarapp-Backup-Token': token },

@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from datetime import datetime, date
 import httpx
 
-from ..database import get_session
+from ..deps import get_session
 from ..models import Invoice, Purchase, PurchaseItem
 from ..document_parser import parse_document, extract_document_text, parse_invoice_materials
 

@@ -1,36 +1,38 @@
 """Stock API endpoints."""
 
+import os
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
-from ..database import get_session
-from ..models import Company, Stock, StockMovement, Material
+from ..database import get_tenant_display_name
+from ..deps import get_session, resolve_tenant_code
+from ..models import Stock, StockMovement, Material
 from ..stock_service import apply_stock_movement
 
-
-def _company_labels(session: Session) -> dict:
-    rows = session.exec(select(Company)).all()
-    return {r.code: r.name for r in rows}
-
 router = APIRouter(prefix="/api/v1/stock", tags=["stock"])
+
+
+def _firm_label(tenant_key: Optional[str]) -> str:
+    if tenant_key:
+        return get_tenant_display_name(tenant_key)
+    return os.getenv("SOLARAPP_LEGACY_COMPANY_LABEL", "SolarApp")
 
 
 @router.get("/", response_model=List[dict])
 def list_stock(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
-    company: Optional[str] = Query(None, description="Filter by material company code"),
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
     session: Session = Depends(get_session),
 ):
     """List all stock with material information."""
     query = select(Stock).join(Material, Stock.material_id == Material.id)
-    if company:
-        query = query.where(Material.company == company)
     query = query.offset(skip).limit(limit)
     stocks = session.exec(query).all()
 
-    labels = _company_labels(session)
+    firm = _firm_label(tenant_key)
 
     result = []
     for stock in stocks:
@@ -40,12 +42,11 @@ def list_stock(
             stock_dict["material_name"] = material.name
             stock_dict["material_sku"] = material.sku
             stock_dict["material_category"] = material.category
-            stock_dict["material_company"] = material.company
-            stock_dict["material_company_display"] = labels.get(material.company, material.company)
+            stock_dict["material_company"] = tenant_key or ""
+            stock_dict["material_company_display"] = firm
             stock_dict["min_stock"] = material.min_stock
             stock_dict["is_low"] = stock.quantity < material.min_stock
-            
-            # Get the latest acquisition price from stock movements
+
             latest_movement = session.exec(
                 select(StockMovement)
                 .where(StockMovement.material_id == stock.material_id)
@@ -53,26 +54,25 @@ def list_stock(
                 .where(StockMovement.unit_price.is_not(None))
                 .order_by(StockMovement.created_at.desc())
             ).first()
-            
-            stock_dict["acquisition_price"] = latest_movement.unit_price if latest_movement else material.unit_price
-            
+
+            stock_dict["acquisition_price"] = (
+                latest_movement.unit_price if latest_movement else material.unit_price
+            )
+
             result.append(stock_dict)
-    
+
     return result
 
 
 @router.get("/low", response_model=List[dict])
 def get_low_stock(
-    company: Optional[str] = Query(None),
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
     session: Session = Depends(get_session),
 ):
     """Get items with stock below minimum threshold."""
-    q = select(Stock).join(Material, Stock.material_id == Material.id)
-    if company:
-        q = q.where(Material.company == company)
-    stocks = session.exec(q).all()
+    stocks = session.exec(select(Stock)).all()
 
-    labels = _company_labels(session)
+    firm = _firm_label(tenant_key)
 
     result = []
     for stock in stocks:
@@ -82,12 +82,11 @@ def get_low_stock(
             stock_dict["material_name"] = material.name
             stock_dict["material_sku"] = material.sku
             stock_dict["material_category"] = material.category
-            stock_dict["material_company"] = material.company
-            stock_dict["material_company_display"] = labels.get(material.company, material.company)
+            stock_dict["material_company"] = tenant_key or ""
+            stock_dict["material_company_display"] = firm
             stock_dict["min_stock"] = material.min_stock
             stock_dict["shortage"] = material.min_stock - stock.quantity
-            
-            # Get the latest acquisition price from stock movements
+
             latest_movement = session.exec(
                 select(StockMovement)
                 .where(StockMovement.material_id == stock.material_id)
@@ -95,11 +94,13 @@ def get_low_stock(
                 .where(StockMovement.unit_price.is_not(None))
                 .order_by(StockMovement.created_at.desc())
             ).first()
-            
-            stock_dict["acquisition_price"] = latest_movement.unit_price if latest_movement else material.unit_price
-            
+
+            stock_dict["acquisition_price"] = (
+                latest_movement.unit_price if latest_movement else material.unit_price
+            )
+
             result.append(stock_dict)
-    
+
     return result
 
 
@@ -109,15 +110,10 @@ def list_movements(
     limit: int = Query(100, ge=1, le=100),
     material_id: Optional[int] = Query(None),
     movement_type: Optional[str] = Query(None),
-    company: Optional[str] = Query(None),
     session: Session = Depends(get_session),
 ):
     """List stock movements with filters."""
     query = select(StockMovement)
-    if company:
-        query = query.join(Material, StockMovement.material_id == Material.id).where(
-            Material.company == company
-        )
 
     if material_id:
         query = query.where(StockMovement.material_id == material_id)
@@ -127,7 +123,7 @@ def list_movements(
 
     query = query.order_by(StockMovement.created_at.desc()).offset(skip).limit(limit)
     movements = session.exec(query).all()
-    
+
     result = []
     for movement in movements:
         material = session.get(Material, movement.material_id)
@@ -136,28 +132,26 @@ def list_movements(
             movement_dict["material_name"] = material.name
             movement_dict["material_sku"] = material.sku
         result.append(movement_dict)
-    
+
     return result
 
 
 @router.get("/{material_id}", response_model=dict)
 def get_stock(material_id: int, session: Session = Depends(get_session)):
     """Get stock for specific material."""
-    stock = session.exec(
-        select(Stock).where(Stock.material_id == material_id)
-    ).first()
-    
+    stock = session.exec(select(Stock).where(Stock.material_id == material_id)).first()
+
     if not stock:
         raise HTTPException(status_code=404, detail="Stock not found")
-    
+
     material = session.get(Material, material_id)
     stock_dict = stock.model_dump()
-    
+
     if material:
         stock_dict["material_name"] = material.name
         stock_dict["material_sku"] = material.sku
         stock_dict["min_stock"] = material.min_stock
-    
+
     return stock_dict
 
 
@@ -176,5 +170,5 @@ def create_movement(movement: StockMovement, session: Session = Depends(get_sess
     )
     session.commit()
     session.refresh(movement)
-    
+
     return movement

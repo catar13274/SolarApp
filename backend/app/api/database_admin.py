@@ -11,7 +11,15 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 
-from ..database import create_db_and_tables, engine, get_sqlite_file_path
+from ..database import (
+    MULTITENANT_ENABLED,
+    create_db_and_tables,
+    engine,
+    get_sqlite_file_path,
+    get_sqlite_restore_path,
+    refresh_tenant_after_restore,
+)
+from ..deps import resolve_tenant_code
 
 router = APIRouter(prefix="/api/v1/admin/database", tags=["database-admin"])
 
@@ -56,21 +64,27 @@ def _verify_solarapp_sqlite(path: Path) -> None:
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             ).fetchall()
         }
-        if not tables.intersection({"material", "stock", "project", "company"}):
+        if not tables.intersection({"material", "stock", "project"}):
             raise HTTPException(
                 status_code=400,
-                detail="File does not look like a SolarApp database (missing expected tables).",
+                detail="File does not look like a SolarApp tenant database (missing expected tables).",
             )
     finally:
         conn.close()
 
 
 @router.get("/backup")
-def download_database_backup(_token_ok: None = Depends(_require_backup_token)):
-    """Download a snapshot of the SQLite database file."""
-    db_path = get_sqlite_file_path()
+def download_database_backup(
+    _token_ok: None = Depends(_require_backup_token),
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
+):
+    """Download a snapshot of the SQLite database file (tenant or legacy)."""
+    db_path = get_sqlite_file_path(tenant_key)
     if not db_path or not db_path.is_file():
-        raise HTTPException(status_code=501, detail="Backup is only supported for SQLite file databases.")
+        raise HTTPException(
+            status_code=501,
+            detail="Backup is only supported for SQLite file databases. For multitenant, send X-Solarapp-Tenant.",
+        )
 
     try:
         _checkpoint_sqlite(db_path)
@@ -79,7 +93,8 @@ def download_database_backup(_token_ok: None = Depends(_require_backup_token)):
 
     data = db_path.read_bytes()
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"solarapp_backup_{stamp}.db"
+    suffix = f"_{tenant_key}" if tenant_key else ""
+    filename = f"solarapp_backup{suffix}_{stamp}.db"
     return Response(
         content=data,
         media_type="application/x-sqlite3",
@@ -90,13 +105,20 @@ def download_database_backup(_token_ok: None = Depends(_require_backup_token)):
 @router.post("/restore")
 async def restore_database_upload(
     _token_ok: None = Depends(_require_backup_token),
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
     file: UploadFile = File(...),
 ):
     """
     Replace the SQLite database with an uploaded .db file.
-    The current database is copied aside as solarapp.db.pre-restore.<timestamp>.bak before overwrite.
+    Multitenant: targets the DB for X-Solarapp-Tenant. Legacy: single SOLARAPP_DB_URL file.
     """
-    db_path = get_sqlite_file_path()
+    if MULTITENANT_ENABLED and tenant_key is None:
+        raise HTTPException(
+            status_code=400,
+            detail="X-Solarapp-Tenant este obligatoriu pentru restore in mod multitenant.",
+        )
+
+    db_path = get_sqlite_restore_path(tenant_key)
     if not db_path:
         raise HTTPException(status_code=501, detail="Restore is only supported for SQLite file databases.")
 
@@ -125,7 +147,12 @@ async def restore_database_upload(
     stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     pre_restore = db_path.with_name(f"{db_path.name}.pre-restore.{stamp}.bak")
 
-    engine.dispose(close=True)
+    if MULTITENANT_ENABLED:
+        from ..database import invalidate_tenant_engine
+
+        invalidate_tenant_engine(tenant_key)
+    elif engine is not None:
+        engine.dispose(close=True)
 
     try:
         if db_path.is_file():
@@ -140,7 +167,10 @@ async def restore_database_upload(
         raise HTTPException(status_code=500, detail=f"Could not replace database file: {exc}") from exc
 
     try:
-        create_db_and_tables()
+        if MULTITENANT_ENABLED and tenant_key:
+            refresh_tenant_after_restore(tenant_key)
+        else:
+            create_db_and_tables()
     except Exception as exc:
         raise HTTPException(
             status_code=500,

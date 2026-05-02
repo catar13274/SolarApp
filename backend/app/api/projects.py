@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from sqlmodel import Session, select
 from datetime import datetime, date, timezone
 
-from ..database import get_session
+from ..deps import get_session
 from ..models import (
     Client,
     Project,

@@ -1,5 +1,6 @@
 """Materials API endpoints."""
 
+import os
 from datetime import datetime
 from io import BytesIO
 from typing import List, Optional
@@ -10,13 +11,9 @@ from fastapi.responses import StreamingResponse
 from openpyxl import Workbook, load_workbook
 from sqlmodel import Session, select
 
-from ..database import get_session
-from ..models import Company, Material, Stock
-
-
-def _company_display_map(session: Session) -> dict:
-    rows = session.exec(select(Company)).all()
-    return {r.code: r.name for r in rows}
+from ..database import get_tenant_display_name
+from ..deps import get_session, resolve_tenant_code
+from ..models import Material, Stock
 
 router = APIRouter(prefix="/api/v1/materials", tags=["materials"])
 TVA_RATE = 0.21
@@ -27,46 +24,46 @@ def _normalize_header(value: str) -> str:
     return " ".join(text.strip().lower().split())
 
 
+def _firm_label(tenant_key: Optional[str]) -> str:
+    if tenant_key:
+        return get_tenant_display_name(tenant_key)
+    return os.getenv("SOLARAPP_LEGACY_COMPANY_LABEL", "SolarApp")
+
+
 @router.get("/", response_model=List[dict])
 def list_materials(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
     search: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
-    company: Optional[str] = Query(None),
-    session: Session = Depends(get_session)
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
+    session: Session = Depends(get_session),
 ):
-    """List all materials with optional search and filters."""
+    """List materials for the current tenant DB (or legacy single DB)."""
     query = select(Material)
-    
+
     if search:
         query = query.where(
-            (Material.name.contains(search)) | 
-            (Material.sku.contains(search)) |
-            ((Material.description.is_not(None)) & (Material.description.contains(search)))
+            (Material.name.contains(search))
+            | (Material.sku.contains(search))
+            | ((Material.description.is_not(None)) & (Material.description.contains(search)))
         )
-    
+
     if category:
         query = query.where(Material.category == category)
 
-    if company:
-        query = query.where(Material.company == company)
-    
     query = query.order_by(Material.name.asc()).offset(skip).limit(limit)
     materials = session.exec(query).all()
 
-    labels = _company_display_map(session)
+    firm = _firm_label(tenant_key)
 
-    # Enrich with stock information
     result = []
     for material in materials:
-        stock = session.exec(
-            select(Stock).where(Stock.material_id == material.id)
-        ).first()
+        stock = session.exec(select(Stock).where(Stock.material_id == material.id)).first()
 
         material_dict = material.model_dump()
         material_dict["current_stock"] = stock.quantity if stock else 0
-        material_dict["company_display_name"] = labels.get(material.company, material.company)
+        material_dict["company_display_name"] = firm
         result.append(material_dict)
 
     return result
@@ -74,14 +71,11 @@ def list_materials(
 
 @router.get("/export")
 def export_materials(
-    company: Optional[str] = Query(None),
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
     session: Session = Depends(get_session),
 ):
     """Export materials to an Excel file."""
-    query = select(Material)
-    if company:
-        query = query.where(Material.company == company)
-    materials = session.exec(query.order_by(Material.name.asc())).all()
+    materials = session.exec(select(Material).order_by(Material.name.asc())).all()
 
     workbook = Workbook()
     sheet = workbook.active
@@ -96,9 +90,11 @@ def export_materials(
         "Valoare (fara TVA)",
         "TVA (21%)",
         "Valoare cu TVA",
-        "Compania",
+        "Firma (context)",
     ]
     sheet.append(headers)
+
+    firm = _firm_label(tenant_key)
 
     for material in materials:
         stock = session.exec(select(Stock).where(Stock.material_id == material.id)).first()
@@ -119,7 +115,7 @@ def export_materials(
                 value_without_vat,
                 vat_value,
                 value_with_vat,
-                material.company,
+                firm,
             ]
         )
 
@@ -140,7 +136,7 @@ async def import_materials(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ):
-    """Import materials from an Excel file."""
+    """Import materials from an Excel file (current tenant / legacy DB)."""
     if not file.filename or not file.filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=400, detail="Only .xlsx files are supported for import.")
 
@@ -166,7 +162,7 @@ async def import_materials(
         "quantity": ["cant.", "cant", "cantitate", "qty", "quantity"],
         "unit": ["u.m.", "u.m", "um", "unit", "u m"],
         "unit_price": ["pret unit. (fara tva)", "pret unitar", "unit_price", "pret unit fara tva"],
-        "company": ["compania", "company", "firma"],
+        "company": ["compania", "company", "firma", "firma (context)"],
         "green_tax": ["taxa verde (ron)", "taxa verde"],
         "value_without_vat": ["valoare (fara tva)"],
         "vat": ["tva (21%)", "tva"],
@@ -179,13 +175,13 @@ async def import_materials(
         if idx is not None:
             header_index[canonical] = idx
 
-    required_headers = {"sku", "name", "quantity", "unit", "unit_price", "company"}
+    required_headers = {"sku", "name", "quantity", "unit", "unit_price"}
     if not required_headers.issubset(set(header_index.keys())):
         raise HTTPException(
             status_code=400,
             detail=(
                 "Missing required columns. Required: "
-                "Cod Produs, Denumire Produs, Cant., U.M., Pret Unit. (fara TVA), Compania"
+                "Cod Produs, Denumire Produs, Cant., U.M., Pret Unit. (fara TVA)"
             ),
         )
 
@@ -207,17 +203,10 @@ async def import_materials(
 
         sku = str(get_val("sku") or "").strip()
         name = str(get_val("name") or "").strip()
-        company = str(get_val("company") or "").strip().lower() or "freevoltsrl.ro"
         unit = str(get_val("unit") or "").strip() or "buc"
 
         if not sku or not name:
             skipped += 1
-            continue
-
-        if not session.exec(select(Company).where(Company.code == company)).first():
-            errors.append(
-                f"Row {row_num}: firma necunoscuta ({company!r}). Adaugati firma in sectiunea Firme."
-            )
             continue
 
         try:
@@ -230,7 +219,6 @@ async def import_materials(
         existing = session.exec(select(Material).where(Material.sku == sku)).first()
         if existing:
             existing.name = name
-            existing.company = company
             existing.unit = unit
             existing.unit_price = unit_price
             existing.updated_at = datetime.utcnow()
@@ -252,7 +240,6 @@ async def import_materials(
                 name=name,
                 sku=sku,
                 description=None,
-                company=company,
                 category="other",
                 unit=unit,
                 unit_price=unit_price,
@@ -278,21 +265,22 @@ async def import_materials(
 
 
 @router.get("/{material_id}", response_model=dict)
-def get_material(material_id: int, session: Session = Depends(get_session)):
+def get_material(
+    material_id: int,
+    tenant_key: Optional[str] = Depends(resolve_tenant_code),
+    session: Session = Depends(get_session),
+):
     """Get material details with current stock."""
     material = session.get(Material, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
-    
-    stock = session.exec(
-        select(Stock).where(Stock.material_id == material_id)
-    ).first()
-    
+
+    stock = session.exec(select(Stock).where(Stock.material_id == material_id)).first()
+
     material_dict = material.model_dump()
     material_dict["current_stock"] = stock.quantity if stock else 0
     material_dict["stock_location"] = stock.location if stock else "Main Warehouse"
-    labels = _company_display_map(session)
-    material_dict["company_display_name"] = labels.get(material.company, material.company)
+    material_dict["company_display_name"] = _firm_label(tenant_key)
 
     return material_dict
 
@@ -300,36 +288,25 @@ def get_material(material_id: int, session: Session = Depends(get_session)):
 @router.post("/", response_model=Material)
 def create_material(material: Material, session: Session = Depends(get_session)):
     """Create a new material."""
-    if not session.exec(select(Company).where(Company.code == material.company)).first():
-        raise HTTPException(
-            status_code=400,
-            detail="Cod firma necunoscut. Adauga firma in sectiunea Firme inainte de a crea materiale.",
-        )
-
-    # Check if SKU already exists
-    existing = session.exec(
-        select(Material).where(Material.sku == material.sku)
-    ).first()
-    
+    existing = session.exec(select(Material).where(Material.sku == material.sku)).first()
     if existing:
         raise HTTPException(status_code=400, detail="SKU already exists")
-    
+
     material.created_at = datetime.utcnow()
     material.updated_at = datetime.utcnow()
-    
+
     session.add(material)
     session.commit()
     session.refresh(material)
-    
-    # Create initial stock entry
+
     stock = Stock(
         material_id=material.id,
         quantity=0.0,
-        location="Main Warehouse"
+        location="Main Warehouse",
     )
     session.add(stock)
     session.commit()
-    
+
     return material
 
 
@@ -337,42 +314,31 @@ def create_material(material: Material, session: Session = Depends(get_session))
 def update_material(
     material_id: int,
     material_update: Material,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
 ):
     """Update an existing material."""
     material = session.get(Material, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
-    
-    # Check SKU uniqueness if changed
+
     if material_update.sku != material.sku:
-        existing = session.exec(
-            select(Material).where(Material.sku == material_update.sku)
-        ).first()
+        existing = session.exec(select(Material).where(Material.sku == material_update.sku)).first()
         if existing:
             raise HTTPException(status_code=400, detail="SKU already exists")
 
-    if not session.exec(select(Company).where(Company.code == material_update.company)).first():
-        raise HTTPException(
-            status_code=400,
-            detail="Cod firma necunoscut. Adauga firma in sectiunea Firme inainte de a actualiza materiale.",
-        )
-    
-    # Update fields
     material.name = material_update.name
     material.sku = material_update.sku
     material.description = material_update.description
-    material.company = material_update.company
     material.category = material_update.category
     material.unit = material_update.unit
     material.unit_price = material_update.unit_price
     material.min_stock = material_update.min_stock
     material.updated_at = datetime.utcnow()
-    
+
     session.add(material)
     session.commit()
     session.refresh(material)
-    
+
     return material
 
 
@@ -382,15 +348,12 @@ def delete_material(material_id: int, session: Session = Depends(get_session)):
     material = session.get(Material, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="Material not found")
-    
-    # Delete associated stock
-    stock = session.exec(
-        select(Stock).where(Stock.material_id == material_id)
-    ).first()
+
+    stock = session.exec(select(Stock).where(Stock.material_id == material_id)).first()
     if stock:
         session.delete(stock)
-    
+
     session.delete(material)
     session.commit()
-    
+
     return {"message": "Material deleted successfully"}

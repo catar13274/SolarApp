@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
-import { materials, companies } from '../../services/api'
+import { materials } from '../../services/api'
 import Button from '../Common/Button'
 import Input from '../Common/Input'
 import Select from '../Common/Select'
@@ -9,17 +9,12 @@ import Select from '../Common/Select'
 const MaterialForm = ({ material, onSuccess, onCancel }) => {
   const queryClient = useQueryClient()
 
-  const { data: companiesList } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companies.getAll().then((res) => res.data),
-  })
   const { register, handleSubmit, formState: { errors } } = useForm({
     mode: 'onChange',
     defaultValues: material || {
       name: '',
       sku: '',
       description: '',
-      company: 'freevoltsrl.ro',
       category: 'panel',
       unit: 'buc',
       unit_price: 0,
@@ -52,10 +47,9 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
   })
 
   const onSubmit = (data) => {
-    // Convert numeric fields
     data.unit_price = parseFloat(data.unit_price)
     data.min_stock = parseInt(data.min_stock)
-    
+
     if (material) {
       updateMutation.mutate(data)
     } else {
@@ -72,13 +66,12 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
     { value: 'other', label: 'Other' },
   ]
 
-  const companyOptions = (companiesList || []).map((c) => ({
-    value: c.code,
-    label: c.name,
-  }))
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <p className="text-sm text-gray-600">
+        Firma activă este cea selectată în bara de sus — materialele sunt salvate în baza acelei firme.
+      </p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
           label="Name"
@@ -86,7 +79,7 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
           {...register('name', { required: 'Name is required' })}
           error={errors.name?.message}
         />
-        
+
         <Input
           label="SKU"
           required
@@ -103,25 +96,13 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Select
-          label="Firma (stoc)"
-          required
-          options={
-            companyOptions.length > 0
-              ? companyOptions
-              : [{ value: 'freevoltsrl.ro', label: 'Freevolt SRL (implicit)' }]
-          }
-          {...register('company', { required: 'Alegeti firma' })}
-          error={errors.company?.message}
-        />
-
-        <Select
           label="Category"
           required
           options={categories}
           {...register('category', { required: 'Category is required' })}
           error={errors.category?.message}
         />
-        
+
         <Input
           label="Unit"
           required
@@ -130,11 +111,6 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
           placeholder="e.g., buc, m, kg"
         />
       </div>
-      {companyOptions.length === 0 && (
-        <p className="text-sm text-amber-700">
-          Nu exista firme inregistrate. Mergeti la meniul <strong>Firme</strong> si adaugati cel putin o societate inainte de a salva materiale.
-        </p>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
@@ -145,7 +121,7 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
           {...register('unit_price', { required: 'Unit price is required' })}
           error={errors.unit_price?.message}
         />
-        
+
         <Input
           label="Minimum Stock"
           type="number"
@@ -159,7 +135,7 @@ const MaterialForm = ({ material, onSuccess, onCancel }) => {
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button 
+        <Button
           type="submit"
           disabled={createMutation.isPending || updateMutation.isPending}
         >

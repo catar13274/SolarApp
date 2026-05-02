@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 
-from ..database import get_session
+from ..deps import get_session
 from ..models import Client, ClientCreate, ClientUpdate
 
 router = APIRouter(prefix="/api/v1/clients", tags=["clients"])

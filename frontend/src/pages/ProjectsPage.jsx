@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Edit, Trash2, Download, FileText, Receipt } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { projects } from '../services/api'
+import { useCompanyScope } from '../hooks/useCompanyScope'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Badge from '../components/Common/Badge'
@@ -12,6 +13,7 @@ import Modal from '../components/Common/Modal'
 import ProjectForm from '../components/Projects/ProjectForm'
 
 const ProjectsPage = () => {
+  const [tenantCode] = useCompanyScope()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProject, setEditingProject] = useState(null)
   const [statusFilter, setStatusFilter] = useState('')
@@ -19,7 +21,7 @@ const ProjectsPage = () => {
   const queryClient = useQueryClient()
 
   const { data: projectsData, isLoading } = useQuery({
-    queryKey: ['projects', statusFilter],
+    queryKey: ['projects', statusFilter, tenantCode],
     queryFn: () => projects.getAll({ 
       status: statusFilter || undefined,
     }).then(res => res.data),

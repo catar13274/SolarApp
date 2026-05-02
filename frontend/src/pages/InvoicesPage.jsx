@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Upload, FileText, ExternalLink, Trash2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { invoices } from '../services/api'
+import { useCompanyScope } from '../hooks/useCompanyScope'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
 import Badge from '../components/Common/Badge'
@@ -13,13 +14,14 @@ import Modal from '../components/Common/Modal'
 import InvoiceUpload from '../components/Invoices/InvoiceUpload'
 
 const InvoicesPage = () => {
+  const [tenantCode] = useCompanyScope()
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false)
   const [deleteInvoiceId, setDeleteInvoiceId] = useState(null)
   
   const queryClient = useQueryClient()
 
   const { data: invoicesData, isLoading } = useQuery({
-    queryKey: ['invoices'],
+    queryKey: ['invoices', tenantCode],
     queryFn: () => invoices.getAll().then(res => res.data),
   })
 

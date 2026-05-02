@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Plus, ArrowRight } from 'lucide-react'
-import { stock, companies } from '../services/api'
+import { stock } from '../services/api'
 import { useCompanyScope } from '../hooks/useCompanyScope'
 import Card from '../components/Common/Card'
 import Button from '../components/Common/Button'
@@ -12,32 +12,25 @@ import StockMovementForm from '../components/Stock/StockMovementForm'
 import AllocateMaterialForm from '../components/Stock/AllocateMaterialForm'
 
 const StockPage = () => {
-  const [companyCode, setCompanyCode] = useCompanyScope()
+  const [tenantCode] = useCompanyScope()
   const [isMovementModalOpen, setIsMovementModalOpen] = useState(false)
   const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false)
   const [selectedStock, setSelectedStock] = useState(null)
   const [showLowStockOnly, setShowLowStockOnly] = useState(false)
 
-  const companyParams = companyCode ? { company: companyCode } : {}
-
-  const { data: companiesList } = useQuery({
-    queryKey: ['companies'],
-    queryFn: () => companies.getAll().then((res) => res.data),
-  })
-
   const { data: stockData, isLoading: stockLoading } = useQuery({
-    queryKey: ['stock', companyCode],
-    queryFn: () => stock.getAll({ ...companyParams }).then(res => res.data),
+    queryKey: ['stock', tenantCode],
+    queryFn: () => stock.getAll().then((res) => res.data),
   })
 
   const { data: lowStockData } = useQuery({
-    queryKey: ['low-stock', companyCode],
-    queryFn: () => stock.getLowStock({ ...companyParams }).then(res => res.data),
+    queryKey: ['low-stock', tenantCode],
+    queryFn: () => stock.getLowStock().then((res) => res.data),
   })
 
   const { data: movements, isLoading: movementsLoading } = useQuery({
-    queryKey: ['stock-movements', companyCode],
-    queryFn: () => stock.getMovements({ limit: 50, ...companyParams }).then(res => res.data),
+    queryKey: ['stock-movements', tenantCode],
+    queryFn: () => stock.getMovements({ limit: 50 }).then((res) => res.data),
   })
 
   const displayData = showLowStockOnly ? lowStockData : stockData
@@ -52,22 +45,6 @@ const StockPage = () => {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <label className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-700">
-            <span className="font-medium whitespace-nowrap">Firma activa</span>
-            <select
-              value={companyCode}
-              onChange={(e) => setCompanyCode(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[200px]"
-              title="Aceasta selectie filtreaza stocul si lista de materiale la miscari. Este aceeasi ca la pagina Materials."
-            >
-              <option value="">Toate firmele</option>
-              {(companiesList || []).map((c) => (
-                <option key={c.id} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
           <Button onClick={() => setIsMovementModalOpen(true)}>
             <Plus className="h-5 w-5 mr-2" />
             Record Movement
@@ -128,9 +105,6 @@ const StockPage = () => {
                     Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Company
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Quantity
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -162,11 +136,6 @@ const StockPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant="default">
                         {item.material_category}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant="info">
-                        {item.material_company_display || item.material_company}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
@@ -289,7 +258,7 @@ const StockPage = () => {
         size="lg"
       >
         <StockMovementForm
-          companyFilter={companyCode || null}
+          tenantCode={tenantCode}
           onSuccess={() => setIsMovementModalOpen(false)}
           onCancel={() => setIsMovementModalOpen(false)}
         />
