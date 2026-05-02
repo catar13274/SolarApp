@@ -327,6 +327,7 @@ const ProjectsPage = () => {
         size="xl"
       >
         <ProjectForm
+          key={editingProject?.id ?? 'new'}
           project={editingProject}
           onSuccess={handleCloseModal}
           onCancel={handleCloseModal}

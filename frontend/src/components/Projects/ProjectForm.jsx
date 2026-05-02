@@ -1,37 +1,49 @@
 import { useForm } from 'react-hook-form'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
-import { projects } from '../../services/api'
+import { projects, clients } from '../../services/api'
 import Button from '../Common/Button'
 import Input from '../Common/Input'
 import Select from '../Common/Select'
 
 const ProjectForm = ({ project, onSuccess, onCancel }) => {
   const queryClient = useQueryClient()
-  const { register, handleSubmit, formState: { errors } } = useForm({
+
+  const { data: clientsList } = useQuery({
+    queryKey: ['clients'],
+    queryFn: () => clients.getAll({ limit: 200 }).then((res) => res.data),
+  })
+
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     mode: 'onChange',
-    defaultValues: project || {
-      name: '',
-      client_name: '',
-      client_contact: '',
-      client_tax_id: '',
-      client_registration: '',
-      client_billing_address: '',
-      location: '',
-      capacity_kw: 0,
-      status: 'planned',
-      start_date: '',
-      end_date: '',
-      estimated_cost: 0,
-      actual_cost: 0,
-      labor_cost_estimated: 0,
-      labor_cost_actual: 0,
-      transport_cost_estimated: 0,
-      transport_cost_actual: 0,
-      other_costs_estimated: 0,
-      other_costs_actual: 0,
-      notes: '',
-    }
+    defaultValues: project
+      ? {
+          ...project,
+          client_id: project.client_id != null ? String(project.client_id) : '',
+        }
+      : {
+          name: '',
+          client_id: '',
+          client_name: '',
+          client_contact: '',
+          client_tax_id: '',
+          client_registration: '',
+          client_billing_address: '',
+          location: '',
+          capacity_kw: 0,
+          status: 'planned',
+          start_date: '',
+          end_date: '',
+          estimated_cost: 0,
+          actual_cost: 0,
+          labor_cost_estimated: 0,
+          labor_cost_actual: 0,
+          transport_cost_estimated: 0,
+          transport_cost_actual: 0,
+          other_costs_estimated: 0,
+          other_costs_actual: 0,
+          notes: '',
+        },
   })
 
   const createMutation = useMutation({
@@ -105,6 +117,13 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
     if (!data.client_registration || data.client_registration === '') data.client_registration = null
     if (!data.client_billing_address || data.client_billing_address === '') data.client_billing_address = null
     if (!data.notes || data.notes === '') data.notes = null
+
+    if (!data.client_id || data.client_id === '') {
+      data.client_id = null
+    } else {
+      const cid = parseInt(data.client_id, 10)
+      data.client_id = Number.isNaN(cid) ? null : cid
+    }
     
     if (project) {
       updateMutation.mutate(data)
@@ -128,6 +147,41 @@ const ProjectForm = ({ project, onSuccess, onCancel }) => {
         {...register('name', { required: 'Project name is required' })}
         error={errors.name?.message}
       />
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Client salvat (optional)
+        </label>
+        <select
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          value={watch('client_id') || ''}
+          onChange={(e) => {
+            const v = e.target.value
+            setValue('client_id', v)
+            if (!v) return
+            const id = Number(v)
+            const cl = clientsList?.find((c) => c.id === id)
+            if (cl) {
+              setValue('client_name', cl.name)
+              setValue('client_contact', cl.contact || '')
+              setValue('client_tax_id', cl.tax_id || '')
+              setValue('client_registration', cl.registration || '')
+              setValue('client_billing_address', cl.billing_address || '')
+              if (cl.location) setValue('location', cl.location)
+            }
+          }}
+        >
+          <option value="">— Completati manual mai jos sau alegeti din lista Clienti —</option>
+          {(clientsList || []).map((c) => (
+            <option key={c.id} value={String(c.id)}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500 mt-1">
+          Lista se gestioneaza din pagina <strong>Clienti</strong>.
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
