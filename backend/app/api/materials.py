@@ -24,6 +24,34 @@ def _normalize_header(value: str) -> str:
     return " ".join(text.strip().lower().split())
 
 
+def _parse_number(value) -> float:
+    """Parse numeric values from Excel cells, including RO locale strings."""
+    if value is None or value == "":
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    text = str(value).strip().replace(" ", "")
+    if not text:
+        return 0.0
+
+    # Keep only characters relevant for numeric parsing.
+    text = "".join(ch for ch in text if ch.isdigit() or ch in ",.-")
+    if not text:
+        raise ValueError("empty numeric value")
+
+    # If both separators exist, right-most one is decimal separator.
+    if "," in text and "." in text:
+        if text.rfind(",") > text.rfind("."):
+            text = text.replace(".", "").replace(",", ".")
+        else:
+            text = text.replace(",", "")
+    elif "," in text:
+        text = text.replace(".", "").replace(",", ".")
+
+    return float(text)
+
+
 def _firm_label(tenant_key: Optional[str]) -> str:
     if tenant_key:
         return get_tenant_display_name(tenant_key)
@@ -210,8 +238,8 @@ async def import_materials(
             continue
 
         try:
-            unit_price = float(get_val("unit_price") or 0)
-            quantity = float(get_val("quantity") or 0)
+            unit_price = _parse_number(get_val("unit_price"))
+            quantity = _parse_number(get_val("quantity"))
         except (ValueError, TypeError):
             errors.append(f"Row {row_num}: invalid numeric values for Cant./Pret Unit.")
             continue

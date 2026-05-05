@@ -119,6 +119,61 @@ def get_sqlite_restore_path(tenant_code: Optional[str] = None) -> Optional[Path]
 
 def create_registry_tables() -> None:
     REGISTRY_METADATA.create_all(registry_engine)
+    _migrate_registry_engine()
+
+
+def _migrate_registry_engine() -> None:
+    """Incremental SQLite migrations for central tenant registry."""
+    if "sqlite" not in REGISTRY_URL:
+        return
+
+    with registry_engine.connect() as conn:
+        tables = conn.exec_driver_sql(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tenant'"
+        ).fetchall()
+        if not tables:
+            return
+
+        cols = conn.exec_driver_sql("PRAGMA table_info(tenant)").fetchall()
+        col_names = {col[1] for col in cols}
+        alters = []
+        if "legal_name" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN legal_name VARCHAR")
+        if "tax_id" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN tax_id VARCHAR")
+        if "registration" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN registration VARCHAR")
+        if "address" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN address VARCHAR")
+        if "phone" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN phone VARCHAR")
+        if "email" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN email VARCHAR")
+        if "notes" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN notes VARCHAR")
+        if "created_at" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN created_at TIMESTAMP")
+        if "updated_at" not in col_names:
+            alters.append("ALTER TABLE tenant ADD COLUMN updated_at TIMESTAMP")
+
+        for stmt in alters:
+            conn.exec_driver_sql(stmt)
+
+        if "updated_at" in col_names or any("updated_at" in s for s in alters):
+            conn.exec_driver_sql(
+                "UPDATE tenant SET updated_at=CURRENT_TIMESTAMP WHERE updated_at IS NULL"
+            )
+        if "created_at" in col_names or any("created_at" in s for s in alters):
+            conn.exec_driver_sql(
+                "UPDATE tenant SET created_at=CURRENT_TIMESTAMP WHERE created_at IS NULL"
+            )
+        if "legal_name" in col_names or any("legal_name" in s for s in alters):
+            conn.exec_driver_sql(
+                "UPDATE tenant SET legal_name=name WHERE legal_name IS NULL OR legal_name=''"
+            )
+
+        if alters:
+            conn.commit()
 
 
 def _migrate_tenant_engine(eng: Engine) -> None:
@@ -155,12 +210,17 @@ def _migrate_tenant_engine(eng: Engine) -> None:
             conn.commit()
 
 
+def _ensure_tenant_schema(eng: Engine) -> None:
+    """Ensure all current tenant tables exist, then run incremental migrations."""
+    TENANT_METADATA.create_all(eng)
+    _migrate_tenant_engine(eng)
+
+
 def create_db_and_tables() -> None:
     """Legacy single-database initialization."""
     if MULTITENANT_ENABLED or engine is None:
         return
-    TENANT_METADATA.create_all(engine)
-    _migrate_tenant_engine(engine)
+    _ensure_tenant_schema(engine)
 
 
 def sqlite_url_from_path(path: Path) -> str:
@@ -179,8 +239,7 @@ def provision_tenant_database(code: str) -> Path:
         pool_pre_ping=True,
         pool_recycle=3600,
     )
-    TENANT_METADATA.create_all(eng)
-    _migrate_tenant_engine(eng)
+    _ensure_tenant_schema(eng)
     eng.dispose(close=True)
     invalidate_tenant_engine(code)
     return path
@@ -196,7 +255,7 @@ def refresh_tenant_after_restore(code: str) -> None:
     """Re-open tenant engine and apply SQLite migrations after file replace."""
     invalidate_tenant_engine(code)
     eng = get_tenant_engine(code)
-    _migrate_tenant_engine(eng)
+    _ensure_tenant_schema(eng)
 
 
 def get_tenant_engine(code: str) -> Engine:
@@ -225,6 +284,7 @@ def get_tenant_engine(code: str) -> Engine:
         pool_pre_ping=True,
         pool_recycle=3600,
     )
+    _ensure_tenant_schema(eng)
     _tenant_engines[norm] = eng
     return eng
 
