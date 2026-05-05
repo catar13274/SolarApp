@@ -9,6 +9,7 @@ User=your-username
 # Configured for installation at /opt/SolarApp
 WorkingDirectory=/opt/SolarApp/backend
 Environment="PATH=/opt/SolarApp/backend/.venv/bin"
+EnvironmentFile=-/opt/SolarApp/backend/.env
 Environment="SOLARAPP_DB_URL=sqlite:////opt/SolarApp/backend/data/solarapp.db"
 Environment="XML_PARSER_URL=http://localhost:5000"
 Environment="PYTHONUNBUFFERED=1"

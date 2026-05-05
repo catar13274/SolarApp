@@ -9,6 +9,7 @@ User=pi
 # Update these paths to match your installation directory (e.g., /opt/SolarApp, /home/youruser/SolarApp, etc.)
 WorkingDirectory=/home/pi/SolarApp/backend
 Environment="PATH=/home/pi/SolarApp/backend/.venv/bin"
+EnvironmentFile=-/home/pi/SolarApp/backend/.env
 Environment="SOLARAPP_DB_URL=sqlite:////home/pi/SolarApp/backend/data/solarapp.db"
 Environment="XML_PARSER_URL=http://localhost:5000"
 Environment="PYTHONUNBUFFERED=1"

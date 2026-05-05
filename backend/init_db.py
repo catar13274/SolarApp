@@ -14,8 +14,14 @@ from pathlib import Path
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
+# Load .env BEFORE importing app.database — otherwise MULTITENANT_ENABLED and paths stay at defaults.
+from dotenv import load_dotenv
+
+load_dotenv(backend_dir / ".env")
+
 from app.database import (
     DATABASE_URL,
+    REGISTRY_URL,
     MULTITENANT_ENABLED,
     create_db_and_tables,
     ensure_registry_seed,
@@ -32,7 +38,10 @@ def main():
     print("=" * 60)
     print("SolarApp Database Initialization")
     print("=" * 60)
-    print(f"\nDatabase URL: {DATABASE_URL}")
+    print(f"\nMultitenant mode: {MULTITENANT_ENABLED}")
+    print(f"Tenant DB URL (legacy): {DATABASE_URL}")
+    if MULTITENANT_ENABLED:
+        print(f"Registry URL: {REGISTRY_URL}")
     
     # Extract database file path from URL (SQLite only)
     # Note: For PostgreSQL or other databases, this script will still initialize tables

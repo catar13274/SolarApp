@@ -392,6 +392,7 @@ Type=simple
 User=$CURRENT_USER
 WorkingDirectory=$INSTALL_DIR/backend
 Environment="PATH=$INSTALL_DIR/backend/.venv/bin"
+EnvironmentFile=-$INSTALL_DIR/backend/.env
 # Optimized for Raspberry Pi with single worker
 ExecStart=$INSTALL_DIR/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT --workers 1 --limit-concurrency 50 --timeout-keep-alive 5
 Restart=always

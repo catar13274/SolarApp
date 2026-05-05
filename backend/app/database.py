@@ -8,7 +8,7 @@ from typing import Optional
 
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
-from sqlalchemy import event
+from sqlalchemy import event, inspect
 from sqlalchemy.engine import Engine
 
 from .registry_models import TenantRegistry
@@ -120,6 +120,9 @@ def get_sqlite_restore_path(tenant_code: Optional[str] = None) -> Optional[Path]
 
 def create_registry_tables() -> None:
     REGISTRY_METADATA.create_all(registry_engine)
+    # Recovery: empty/corrupt registry files where create_all skipped DDL.
+    if "sqlite" in REGISTRY_URL and not inspect(registry_engine).has_table("tenant"):
+        TenantRegistry.__table__.create(bind=registry_engine, checkfirst=True)
     _migrate_registry_engine()
 
 
