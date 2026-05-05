@@ -2,6 +2,7 @@
 
 import os
 import re
+import sqlite3
 from pathlib import Path
 from typing import Optional
 
@@ -81,7 +82,7 @@ if not MULTITENANT_ENABLED:
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_conn, connection_record):
-    if connection_record.dialect.name == "sqlite":
+    if isinstance(dbapi_conn, sqlite3.Connection):
         cursor = dbapi_conn.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
