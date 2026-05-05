@@ -33,6 +33,17 @@ print_note() {
     echo -e "${BLUE}[NOTE]${NC} $1"
 }
 
+set_env_value() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|g" "$file"
+    else
+        echo "${key}=${value}" >> "$file"
+    fi
+}
+
 # Detect if running on Diet Pi
 IS_DIETPI=false
 if [ -f "/boot/dietpi/.version" ] || [ -f "/boot/dietpi.txt" ]; then
@@ -206,6 +217,13 @@ echo
 print_info "Step 4: Updating backend dependencies..."
 
 cd "$INSTALL_DIR/backend"
+
+# Keep DietPi instance aligned with multitenant production layout.
+if [ -f ".env" ]; then
+    set_env_value ".env" "SOLARAPP_MULTITENANT" "true"
+    set_env_value ".env" "SOLARAPP_REGISTRY_URL" "sqlite:///./data/registry.db"
+    set_env_value ".env" "SOLARAPP_TENANT_ROOT" "./data/tenants"
+fi
 
 if [ ! -d ".venv" ]; then
     print_warning "Backend virtual environment not found, creating..."

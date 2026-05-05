@@ -30,6 +30,17 @@ print_note() {
     echo -e "${BLUE}[NOTE]${NC} $1"
 }
 
+set_env_value() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+    if grep -q "^${key}=" "$file"; then
+        sed -i "s|^${key}=.*|${key}=${value}|g" "$file"
+    else
+        echo "${key}=${value}" >> "$file"
+    fi
+}
+
 # Detect if running on Diet Pi
 IS_DIETPI=false
 if [ -f "/boot/dietpi/.version" ] || [ -f "/boot/dietpi.txt" ]; then
@@ -205,6 +216,11 @@ if [ ! -f "backend/.env" ]; then
     # Update database path for absolute path
     sed -i "s|sqlite:///./data/solarapp.db|sqlite:///$INSTALL_DIR/backend/data/solarapp.db|g" backend/.env
 fi
+
+# Force multitenant layout for DietPi deployment so firm-scoped data always works.
+set_env_value "backend/.env" "SOLARAPP_MULTITENANT" "true"
+set_env_value "backend/.env" "SOLARAPP_REGISTRY_URL" "sqlite:///./data/registry.db"
+set_env_value "backend/.env" "SOLARAPP_TENANT_ROOT" "./data/tenants"
 
 # Initialize database
 echo
