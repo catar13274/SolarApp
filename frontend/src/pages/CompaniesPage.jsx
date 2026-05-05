@@ -22,6 +22,22 @@ const emptyForm = {
   notes: '',
 }
 
+const extractApiError = (err, fallback) => {
+  const detail = err?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0]
+    if (typeof first === 'string') return first
+    if (first?.msg) return first.msg
+  }
+  if (detail && typeof detail === 'object' && detail.message) return detail.message
+  if (err?.message === 'Network Error') {
+    return 'Nu se poate contacta serverul API. Verificati daca backend-ul ruleaza.'
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) return err.message
+  return fallback
+}
+
 const CompaniesPage = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -63,7 +79,7 @@ const CompaniesPage = () => {
       closeModal()
     },
     onError: (err) => {
-      toast.error(err.response?.data?.detail || 'Eroare la salvare')
+      toast.error(extractApiError(err, 'Eroare la salvare'))
     },
   })
 
@@ -74,7 +90,7 @@ const CompaniesPage = () => {
       toast.success('Firma stearsa')
     },
     onError: (err) => {
-      toast.error(err.response?.data?.detail || 'Nu se poate sterge firma')
+      toast.error(extractApiError(err, 'Nu se poate sterge firma'))
     },
   })
 
