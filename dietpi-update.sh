@@ -221,6 +221,9 @@ pip install --upgrade pip --quiet
 print_info "Installing/updating backend dependencies..."
 pip install -r requirements.txt --quiet
 
+print_info "Running database bootstrap (legacy/multitenant safe)..."
+python3 init_db.py --non-interactive
+
 # Check if there are database migrations to run
 if [ -f "alembic.ini" ] && [ -d "alembic" ]; then
     print_info "Checking for database migrations..."

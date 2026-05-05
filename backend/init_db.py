@@ -14,7 +14,13 @@ from pathlib import Path
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-from app.database import create_db_and_tables, DATABASE_URL
+from app.database import (
+    DATABASE_URL,
+    MULTITENANT_ENABLED,
+    create_db_and_tables,
+    ensure_registry_seed,
+    provision_missing_tenant_files,
+)
 
 def main():
     """Initialize the database."""
@@ -66,8 +72,14 @@ def main():
         print("\n✓ Initializing database tables...")
     
     try:
-        # Create database and tables
-        create_db_and_tables()
+        # Initialize all database structures needed by the current mode.
+        # - Legacy mode: create main DB/tables.
+        # - Multitenant mode: create registry, seed default tenants, provision tenant DB files.
+        if MULTITENANT_ENABLED:
+            ensure_registry_seed()
+            provision_missing_tenant_files()
+        else:
+            create_db_and_tables()
         print("\n✓ Database initialized successfully!")
         print("\nNext steps:")
         print("1. Start the backend server: uvicorn app.main:app --reload")

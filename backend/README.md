@@ -51,9 +51,9 @@ The backend uses SQLite as the default database. The database is automatically c
 
 The database file location is determined by the `SOLARAPP_DB_URL` environment variable in the `.env` file:
 
-- **Default configuration**: `sqlite:///./solarapp.db`
-  - Creates `solarapp.db` in the current working directory
-  - When running from `backend/` directory: creates `backend/solarapp.db`
+- **Default configuration**: `sqlite:///./data/solarapp.db`
+  - Creates `solarapp.db` under the `data/` directory in the current working directory
+  - When running from `backend/` directory: creates `backend/data/solarapp.db`
   - **Important**: Always run the backend from the `backend/` directory to ensure consistent file location
   
 - **Absolute path configuration**: `sqlite:////absolute/path/to/solarapp.db`
@@ -84,7 +84,7 @@ Once the server is running, you can access:
 
 Configure these in your `.env` file:
 
-- `SOLARAPP_DB_URL` - Database connection URL (default: `sqlite:///./solarapp.db`)
+- `SOLARAPP_DB_URL` - Database connection URL (default: `sqlite:///./data/solarapp.db`)
 - `XML_PARSER_URL` - URL for the XML parser service (default: `http://localhost:5000`)
 - `XML_PARSER_TOKEN` - Authentication token for XML parser service
 - `CORS_ORIGINS` - Comma-separated list of allowed CORS origins
