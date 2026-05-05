@@ -120,9 +120,9 @@ def get_sqlite_restore_path(tenant_code: Optional[str] = None) -> Optional[Path]
 
 def create_registry_tables() -> None:
     REGISTRY_METADATA.create_all(registry_engine)
-    # Recovery: empty/corrupt registry files where create_all skipped DDL.
-    if "sqlite" in REGISTRY_URL and not inspect(registry_engine).has_table("tenant"):
-        TenantRegistry.__table__.create(bind=registry_engine, checkfirst=True)
+    # Recovery: ensure the registry tenant table exists even when metadata/create_all
+    # doesn't apply (e.g., stale/empty registry.db or initialization races).
+    TenantRegistry.__table__.create(bind=registry_engine, checkfirst=True)
     _migrate_registry_engine()
 
 
